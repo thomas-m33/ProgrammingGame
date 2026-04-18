@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics
 from PyQt6.QtCore import QRect, QSize, Qt
 import re
+import multiprocessing as mp
 
 class BaseLevelPage(QWidget):
     def __init__(self, back_method, level_info: str): # level info will probably be updated so it can include images
@@ -38,7 +39,7 @@ class BaseLevelPage(QWidget):
         right_layout.addWidget(QLabel(self.level_info))
 
         run_button = QPushButton("Run Code")
-        run_button.clicked.connect(lambda: print("run button pressed")) # Temporary
+        run_button.clicked.connect(self.safe_exec) # Temporary
         right_layout.addWidget(run_button)
 
         back_button = QPushButton("Back")
@@ -47,8 +48,35 @@ class BaseLevelPage(QWidget):
 
         main_layout.addWidget(right_panel)
 
+    @staticmethod
+    def try_code(code):
+        try:
+            exec(code)
+        except Exception as e:
+            print("error:", e)
+
+    def safe_exec(self):
+        p = mp.Process(target=self.try_code, args=(self.editor.toPlainText(),))
+        p.start()
+        p.join(2)  # Wait up to 2 seconds
+
+        if p.is_alive():
+            p.terminate()
+            print("your code got stuck")
+            p.join() # Triggers OS to remove the multiprocess child's PID
+
 
 class CodeEditor(QPlainTextEdit):
+
+    character_pairs = {
+    "(": ")",
+    "[": "]",
+    "{": "}",
+    "'": "'",
+    '"': '"'
+    }
+    # For turning inputs like ( into ()
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -70,7 +98,7 @@ class CodeEditor(QPlainTextEdit):
         # Number of digits that the largest line number has
 
         # Calculate the width needed for the line number margin
-        space = 10 + self.fontMetrics().horizontalAdvance('9') * digits # space = 10 + width of '9' * digits
+        space = 10 + self.fontMetrics().horizontalAdvance("9") * digits # space = 10 + width of '9' * digits
         return space
 
     def update_line_number_area_width(self, _): # Has a throwaway parameter for the value passed in by blockCountChanged
@@ -143,7 +171,15 @@ class CodeEditor(QPlainTextEdit):
             self.setTextCursor(cursor) # Move the cursor to the updated position
             return
 
+        elif event.text() in CodeEditor.character_pairs:
+            cursor = self.textCursor()
+            cursor.insertText(event.text() + CodeEditor.character_pairs[event.text()])
+            cursor.movePosition(cursor.MoveOperation.Left) # Places text cursor is in the middle of characters
+            self.setTextCursor(cursor)
+            return
+
         super().keyPressEvent(event)
+
 
 
 class LineNumberArea(QWidget):

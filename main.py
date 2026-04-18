@@ -3,8 +3,6 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStackedWidget
 from menus import create_main_menu, create_level_select
 from levels.level1 import Level1Page
 
-app = QApplication(sys.argv) # Creates the application object and passes any command line arguments into it.
-
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -24,10 +22,17 @@ class MainWindow(QWidget):
         main_layout.addWidget(self.stack)
         self.setLayout(main_layout)
 
-window = MainWindow()
-window.show() # Makes the window visible.
 
-sys.exit(app.exec())
-# Starts the Qt event loop.
-# app.exec() does not return until user does something like press the quit button or close the window.
-# When it does return, it tells Python to exit the app with a code of the return value.
+if __name__ == "__main__":
+# Only initialise the app if this is the main instance of it (not a multiprocess child)
+# When the child imports this file it will set __name__ to "__main.py__" and not "__main__"
+
+    app = QApplication(sys.argv) # Creates the application object and passes any command line arguments into it.
+
+    window = MainWindow()
+    window.show() # Makes the window visible.
+
+    sys.exit(app.exec())
+    # Starts the Qt event loop.
+    # app.exec() does not return until user does something like press the quit button or close the window.
+    # When it does return, it tells Python to exit the app with a code of the return value.
