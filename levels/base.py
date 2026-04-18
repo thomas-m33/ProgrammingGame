@@ -174,12 +174,11 @@ class CodeEditor(QPlainTextEdit):
         elif event.text() in CodeEditor.character_pairs:
             cursor = self.textCursor()
             cursor.insertText(event.text() + CodeEditor.character_pairs[event.text()])
-            cursor.movePosition(cursor.MoveOperation.Left) # Places text cursor is in the middle of characters
+            cursor.movePosition(cursor.MoveOperation.Left) # Places text cursor in the middle of the characters
             self.setTextCursor(cursor)
             return
 
         super().keyPressEvent(event)
-
 
 
 class LineNumberArea(QWidget):
