@@ -1,6 +1,6 @@
 import sys
 import os
-os.environ["QT_LOGGING_RULES"] = "qt.multimedia.*=false" # Silence info about songs being dumped into the terminal
+os.environ["QT_LOGGING_RULES"] = "qt.multimedia.*=false" # Stops media player data being dumped into the terminal
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStackedWidget
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtCore import QUrl
@@ -13,15 +13,16 @@ class MainWindow(QWidget):
 
         self.setWindowTitle("Dave's Algorithm Adventures")
         self.stack = QStackedWidget() # Holds multiple pages
-        self.setMinimumSize(852, 480)
+        self.setMinimumSize(852, 560)
 
         main_menu = create_main_menu(self.stack, self.close)
         level_select = create_level_select(self.stack)
-        level1 = Level1Page(on_back = lambda: self.stack.setCurrentIndex(1))
+        level1 = Level1Page(back_method = lambda: self.stack.setCurrentIndex(1))
 
         self.stack.addWidget(main_menu) # Stack index 0 because it was added first
         self.stack.addWidget(level_select) # Index 1
         self.stack.addWidget(level1) # Index 2
+        # More will be added later...
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.stack)
@@ -31,10 +32,10 @@ class MainWindow(QWidget):
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
 
-        file_path = os.path.abspath("menu_music.wav")
+        file_path = os.path.abspath("assets/menu_music.wav")
         self.player.setSource(QUrl.fromLocalFile(file_path))
 
-        self.audio_output.setVolume(0.3)
+        self.audio_output.setVolume(0.05)
         self.player.play()
 
 

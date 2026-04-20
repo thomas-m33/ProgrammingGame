@@ -1,4 +1,3 @@
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy
 from PyQt6.QtGui import QPixmap
 
@@ -12,9 +11,11 @@ def create_main_menu(stack, quit_method):
     main_layout.addLayout(right_layout, stretch = 1)
     main_layout.setContentsMargins(50, 50, 50, 50)
 
-    title = QLabel("Dave's Algorithm Adventures")  # QLabel is an object type which displays non-editable text
-    title.setStyleSheet("font-size: 28px; font-weight: bold;")  # Sets the style for the title's QLabel object
-    # Will add more styling to everything later.
+    title = QLabel()
+    pixmap1 = QPixmap("assets/title.png")
+    scaled_pixmap1 = pixmap1.scaled(320, 180)
+    title.setPixmap(scaled_pixmap1)
+    title.setScaledContents(True)
 
     button1 = QPushButton("Play") # QPushButton is an object type which creates a pushable button
     button2 = QPushButton("Settings")
@@ -29,9 +30,9 @@ def create_main_menu(stack, quit_method):
     # Connects the button objects to a function that will run when they are clicked
 
     dave_pic = QLabel()
-    pixmap = QPixmap("dave.png")
-    scaled_pixmap = pixmap.scaled(200, 200)
-    dave_pic.setPixmap(scaled_pixmap)
+    pixmap2 = QPixmap("assets/dave.png")
+    scaled_pixmap2 = pixmap2.scaled(250, 250)
+    dave_pic.setPixmap(scaled_pixmap2)
 
     left_layout.addWidget(title)
     left_layout.addWidget(dave_pic)
