@@ -1,4 +1,8 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy
+from typing import Callable
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy,
+                             QCheckBox, QSlider)
 from PyQt6.QtGui import QPixmap
 
 def create_main_menu(stack, quit_method):
@@ -25,7 +29,7 @@ def create_main_menu(stack, quit_method):
     button3.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     button1.clicked.connect(lambda: stack.setCurrentIndex(1)) # 0 = main menu, 1 = level select
-    button2.clicked.connect(lambda: print("Settings clicked")) # Will add settings later
+    button2.clicked.connect(lambda: stack.setCurrentIndex(2)) # Will add settings later
     button3.clicked.connect(quit_method)
     # Connects the button objects to a function that will run when they are clicked
 
@@ -59,13 +63,42 @@ def create_level_select(stack):
         col = i % 5
         grid_layout.addWidget(button, row, col)
         button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        button.clicked.connect(lambda _, n=i: stack.setCurrentIndex(n + 2)) # Levels start at index 2
+        button.clicked.connect(lambda _, n=i: stack.setCurrentIndex(n + 3)) # Levels start at index 2
         # The clicked method also passes True or False to the first argument of lambda so it needs to be a throwaway
 
-    back1 = QPushButton("Back")
-    back1.clicked.connect(lambda: stack.setCurrentIndex(0))
-    grid_layout.addWidget(back1, 2, 0, 1, 5)
+    back_button = QPushButton("Back")
+    back_button.clicked.connect(lambda: stack.setCurrentIndex(0))
+    grid_layout.addWidget(back_button, 2, 0, 1, 5)
 
     layout.addLayout(grid_layout)
     page.setLayout(layout)
+    return page
+
+def create_settings_menu(stack, audio_output, toggle_fullscreen):
+    page = QWidget()
+    main_layout = QHBoxLayout()
+    left_layout = QVBoxLayout()
+    left_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+    right_layout = QVBoxLayout() # This is padding, might find a better way of padding everything later
+    main_layout.addLayout(left_layout, stretch=1)
+    main_layout.addLayout(right_layout, stretch=1)
+
+    fullscreen_checkbox = QCheckBox("Fullscreen Mode")
+    volume_text = QLabel("Volume")
+    volume_slider = QSlider(Qt.Orientation.Horizontal)
+    volume_slider.setRange(0, 100) # 0 <= volume <= 1, but having a higher range makes the slider smoother
+    volume_slider.setValue(50)
+    back_button = QPushButton("Back")
+
+    back_button.clicked.connect(lambda: stack.setCurrentIndex(0))
+    fullscreen_checkbox.toggled.connect(toggle_fullscreen)
+    volume_slider.valueChanged.connect(lambda value: audio_output.setVolume(value/200))
+
+    left_layout.addWidget(QLabel("Settings"))
+    left_layout.addWidget(fullscreen_checkbox)
+    left_layout.addWidget(volume_text)
+    left_layout.addWidget(volume_slider)
+    left_layout.addWidget(back_button)
+
+    page.setLayout(main_layout)
     return page

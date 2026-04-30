@@ -68,7 +68,7 @@ class BaseLevelPage(QWidget):
 
 class CodeEditor(QPlainTextEdit):
 
-    character_pairs = {
+    KEY_PAIRS = {
     "(": ")",
     "[": "]",
     "{": "}",
@@ -97,8 +97,8 @@ class CodeEditor(QPlainTextEdit):
         digits = len(str(self.blockCount()))
         # Number of digits that the largest line number has
 
-        # Calculate the width needed for the line number margin
         space = 10 + self.fontMetrics().horizontalAdvance("9") * digits # space = 10 + width of '9' * digits
+        # Calculates the width needed for the line number margin
         return space
 
     def update_line_number_area_width(self, _): # Has a throwaway parameter for the value passed in by blockCountChanged
@@ -171,9 +171,9 @@ class CodeEditor(QPlainTextEdit):
             self.setTextCursor(cursor) # Move the cursor to the updated position
             return
 
-        elif event.text() in CodeEditor.character_pairs:
+        elif event.text() in CodeEditor.KEY_PAIRS:
             cursor = self.textCursor()
-            cursor.insertText(event.text() + CodeEditor.character_pairs[event.text()])
+            cursor.insertText(event.text() + CodeEditor.KEY_PAIRS[event.text()])
             cursor.movePosition(cursor.MoveOperation.Left) # Places text cursor in the middle of the characters
             self.setTextCursor(cursor)
             return
