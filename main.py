@@ -49,7 +49,6 @@ class MainWindow(QWidget):
             self.showNormal()
 
 
-
 if __name__ == "__main__":
 # Only initialise the app if this is the main instance of it (not a multiprocess child)
 # When the child imports this file it will set __name__ to "__main.py__" and not "__main__"

@@ -1,18 +1,20 @@
 # This is a template for the levels
 
-from PyQt6.QtWidgets import (
-    QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
-)
+from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
 from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics
 from PyQt6.QtCore import QRect, QSize, Qt
 import re
-import multiprocessing as mp
+import multiprocessing
 
 class BaseLevelPage(QWidget):
-    def __init__(self, back_method, level_info: str): # level info will probably be updated so it can include images
+    def __init__(self, back_method, level_info: str, func_name: str, parameters: str, io_checks: dict):
+        # level info will probably be updated so it can include images
         super().__init__()
-        self.back_method = back_method
-        self.level_info = level_info
+        self.back_method = back_method # Method of MainWindow, goes back to the page stack index for level select screen
+        self.level_info = level_info # Instructions/info displayed on the right panel
+        self.func_name = func_name # Name of the function that using is writing their algorithm inside
+        self.parameters = parameters # Parameters that the function is declared with.
+        self.io_checks = io_checks # A dictionary of inputs and expected outputs, used for testing the user algorithm
         self.build_ui()
 
     def build_ui(self):
@@ -26,7 +28,11 @@ class BaseLevelPage(QWidget):
         space_width = font_metrics.horizontalAdvance(' ')
         self.editor.setTabStopDistance(4 * space_width)
 
-        # Inherited methods of QPlainTextEdit
+        cursor = self.editor.textCursor()
+        cursor.insertText(f"def {self.func_name}({self.parameters}):")
+        cursor.insertBlock()
+        cursor.insertText("\t")
+        self.editor.setTextCursor(cursor)
         self.editor.setPlaceholderText("Type your code here...")
         self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap) # Disable line wrapping
 
@@ -42,12 +48,18 @@ class BaseLevelPage(QWidget):
         run_button.clicked.connect(self.safe_exec) # Temporary
         right_layout.addWidget(run_button)
 
+        submit_button = QPushButton("Submit Solution")
+        submit_button.clicked.connect(lambda: self.safe_exec(test=True)) # Temporary
+        right_layout.addWidget(submit_button)
+
         back_button = QPushButton("Back")
         back_button.clicked.connect(self.back_method)
         right_layout.addWidget(back_button)
 
         main_layout.addWidget(right_panel)
 
+    # This needs to be a static method because otherwise Python will throw a pickling error
+    # Also makes sure you can't mess with the class methods or buttons
     @staticmethod
     def try_code(code):
         try:
@@ -55,10 +67,36 @@ class BaseLevelPage(QWidget):
         except Exception as e:
             print("error:", e)
 
-    def safe_exec(self):
-        p = mp.Process(target=self.try_code, args=(self.editor.toPlainText(),))
-        p.start()
-        p.join(2)  # Wait up to 2 seconds
+    @staticmethod
+    def test_code(code, func_name, io_dict):
+        try:
+            for args, expected_output in io_dict.items():
+                namespace = {}
+                exec(code + f"\noutput = {func_name}({args})", namespace)
+
+                output = namespace["output"]
+                # output was created inside exec's namespace, so must it be fetched from there
+
+                if output != expected_output:
+                    print(f"Your code failed with an input of ({args})")
+                    print(f"Expected output: {expected_output}")
+                    print(f"Actual output: {output}")
+                    return
+            print("Your code was successful! Great job on helping Dave.")
+        except Exception as e:
+            print("error:", e)
+
+    def safe_exec(self, test=False):
+        if test:
+            p = multiprocessing.Process(
+                target=self.test_code,
+                args=(self.editor.toPlainText(), self.func_name, self.io_checks))
+            p.start()
+            p.join(3) # Wait up to 3 seconds
+        else:
+            p = multiprocessing.Process(target=self.try_code, args=(self.editor.toPlainText(),))
+            p.start()
+            p.join(2)
 
         if p.is_alive():
             p.terminate()
