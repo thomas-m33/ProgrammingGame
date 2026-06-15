@@ -21,10 +21,11 @@ class MainWindow(QWidget):
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
 
-        file_path = os.path.abspath("assets/menu_music.wav")
-        self.player.setSource(QUrl.fromLocalFile(file_path))
+        music_file_path = os.path.abspath("assets/menu_music.wav")
+        self.player.setSource(QUrl.fromLocalFile(music_file_path))
 
         self.audio_output.setVolume(0.25)
+        self.player.setLoops(QMediaPlayer.Loops.Infinite)
         self.player.play()
 
         # Build GUI

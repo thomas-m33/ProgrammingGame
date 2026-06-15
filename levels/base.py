@@ -1,10 +1,12 @@
 # This is a template for the levels
 
-from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
+from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSizePolicy
 from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics
 from PyQt6.QtCore import QRect, QSize, Qt
 import re
 import multiprocessing
+import io
+from contextlib import redirect_stdout, redirect_stderr
 
 class BaseLevelPage(QWidget):
     def __init__(self, back_method, level_info: str, func_name: str, parameters: str, io_checks: dict):
@@ -21,8 +23,10 @@ class BaseLevelPage(QWidget):
         main_layout = QHBoxLayout(self) #QHBoxLayout organises widgets horizontally from left to right
 
         self.editor = CodeEditor()
+        self.console = ConsoleDisplay()
         font = QFont("Consolas", 12)
         self.editor.setFont(font)
+        self.console.setFont(font)
 
         font_metrics = QFontMetrics(self.editor.font())
         space_width = font_metrics.horizontalAdvance(' ')
@@ -37,71 +41,103 @@ class BaseLevelPage(QWidget):
         self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap) # Disable line wrapping
 
         # Left half: code editor
-        main_layout.addWidget(self.editor)
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.addWidget(self.editor, stretch=3)
+        left_layout.addWidget(self.console, stretch=1)
 
         # Right half: displaying info and buttons
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        right_layout.addWidget(QLabel(self.level_info))
+        info = QLabel(self.level_info)
+        right_layout.addWidget(info)
+        info.setWordWrap(True)
 
         run_button = QPushButton("Run Code")
         run_button.clicked.connect(self.safe_exec) # Temporary
         right_layout.addWidget(run_button)
 
         submit_button = QPushButton("Submit Solution")
-        submit_button.clicked.connect(lambda: self.safe_exec(test=True)) # Temporary
+        submit_button.clicked.connect(lambda: self.safe_exec(test=True))
         right_layout.addWidget(submit_button)
 
         back_button = QPushButton("Back")
         back_button.clicked.connect(self.back_method)
         right_layout.addWidget(back_button)
 
-        main_layout.addWidget(right_panel)
+        main_layout.addWidget(left_panel, stretch=3)
+        main_layout.addWidget(right_panel, stretch=2)
+
+        self.editor.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
+
+        right_panel.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Expanding
+        )
+
 
     # This needs to be a static method because otherwise Python will throw a pickling error
     # Also makes sure you can't mess with the class methods or buttons
     @staticmethod
-    def try_code(code):
-        try:
-            exec(code)
-        except Exception as e:
-            print("error:", e)
+    def try_code(code, stdout_queue):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer), redirect_stderr(buffer):  # Errors and print statements redirected to buffer
+            try:
+                exec(code)
+            except Exception as e:
+                print("error", e)
+        stdout_queue.put(buffer.getvalue())
+
 
     @staticmethod
-    def test_code(code, func_name, io_dict):
-        try:
-            for args, expected_output in io_dict.items():
-                namespace = {}
-                exec(code + f"\noutput = {func_name}({args})", namespace)
+    def test_code(code, func_name, io_dict, stdout_queue):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer), redirect_stderr(buffer):
+            try:
+                for args, expected_output in io_dict.items():
+                    namespace = {}
+                    exec(code + f"\noutput = {func_name}({args})", namespace)
 
-                output = namespace["output"]
-                # output was created inside exec's namespace, so must it be fetched from there
+                    output = namespace["output"]
+                    # output was created inside exec's namespace, so must it be fetched from there
 
-                if output != expected_output:
-                    print(f"Your code failed with an input of ({args})")
-                    print(f"Expected output: {expected_output}")
-                    print(f"Actual output: {output}")
-                    return
-            print("Your code was successful! Great job on helping Dave.")
-        except Exception as e:
-            print("error:", e)
+                    if output != expected_output:
+                        print(f"Your code failed with an input of ({args})")
+                        print(f"Expected output: {expected_output}")
+                        print(f"Actual output: {output}")
+                        break # Skips the else block attached to the for loop
+                else:
+                    print("Your code was successful! Great job on helping Dave.")
+            except Exception as e:
+                print("error", e)
+        stdout_queue.put(buffer.getvalue())
 
     def safe_exec(self, test=False):
+        stdout_queue = multiprocessing.Queue()
         if test:
             p = multiprocessing.Process(
                 target=self.test_code,
-                args=(self.editor.toPlainText(), self.func_name, self.io_checks))
+                args=(self.editor.toPlainText(), self.func_name, self.io_checks, stdout_queue))
             p.start()
             p.join(3) # Wait up to 3 seconds
         else:
-            p = multiprocessing.Process(target=self.try_code, args=(self.editor.toPlainText(),))
+            p = multiprocessing.Process(target=self.try_code, args=(self.editor.toPlainText(), stdout_queue))
             p.start()
             p.join(2)
 
         if p.is_alive():
             p.terminate()
-            print("your code got stuck")
+            self.console.appendPlainText("Your code took too long to execute. It may have gotten stuck.")
             p.join() # Triggers OS to remove the multiprocess child's PID
+
+        if not stdout_queue.empty():
+            text = stdout_queue.get().rstrip("\n")
+            self.console.appendPlainText(text)
+
+
 
 
 class CodeEditor(QPlainTextEdit):
@@ -229,3 +265,12 @@ class LineNumberArea(QWidget):
 
     def paintEvent(self, event):
         self.editor.line_number_area_paint_event(event) # Delegate all painting to the editor
+
+
+class ConsoleDisplay(QPlainTextEdit):
+    def __init__(self):
+        super().__init__()
+        self.appendPlainText('# Output Console')
+        self.setReadOnly(True)
+
+
