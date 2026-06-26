@@ -1,52 +1,67 @@
-from levels.base import BaseLevelPage
+import io
+from contextlib import redirect_stdout, redirect_stderr
+from base import BaseLevelPage
+
 
 class Level1Page(BaseLevelPage):
     def __init__(self, back_method):
-        level_info = ("Unfortunately, Dave has been laid off from his job and he's now on a budget. "
-                      "He wants to buy some bread from the shops but he isn't sure where it would be cheapest.\n\n"
-                      "The dictionaries shop1, shop2 and shop3 contain the prices of various items at "
-                      "stores close to Dave. Accessing one of these dictionaries with the key 'bread' will return the "
-                      "price of bread there as a number.\n\n"
-                      "To help Dave out, write an algorithm which will return the dictionary where he can get bread "
-                      "for the cheapest. If multiple stores tie for the lowest price, return the one with the lower "
-                      "number in its name.")
+        level_info = ("Dave loves to play hide and seek with his kids, but they've gotten too good at hiding recently! "
+                      "He needs you to make an algorithm that will help him find them.\n\n"
+                      "Each index in the list 'rooms' represents a different room of Dave's house where his kids could "
+                      "be hiding. If rooms[index] == True, then at least one of his kids is at that position.\n\n"
+                      "Dave needs you to program the function search_house so that it returns a list with every index "
+                      "that his kids can be found at.\n\n"
+                      "Example:\nrooms = [True, False, True, False]\nreturn [0, 2]"
+                      )
 
-        func_name = "price_check"
-        parameters = "shop1, shop2, shop3"
+        func_name = "search_house"
+        parameters = "rooms"
 
-        io_dict = {'{"bread": 4.50}, {"bread": 3}, {"bread": 4}': {"bread": 3},
-        '{"bread": 2.90}, {"bread": 2.50}, {"bread": 2.65}': {"bread": 2.50},
-        '{"bread": 5}, {"bread": 5, "apples": 2}, {"bread": 5, "bananas": 2}': {"bread": 5},
-        '{"bread": 1}, {"bread": 2}, {"bread": 5}': {"bread": 1},
-        '{"bread": 25, "bananas": 2}, {"bread": 25, "apples": 2}, {"bread": 35}': {"bread": 25, "bananas": 2}}
+        io_dict = {'[True, False, True, True, False, False]': [0, 2, 3],
+                   '[False, True]': [1],
+                   '[True, True, True, True]': [0, 1, 2, 3],
+                   '[False]': [],
+                   '[True]': [0]
+                   }
         # Keys are inputs, values are the expected output of the function
-        # Some dictionaries have more entries to distinguish them from other shops with the same bread price
 
         super().__init__(back_method, level_info, func_name, parameters, io_dict)
 
-        """
-        Solution:
-        
-def price_check(shop1, shop2, shop3):
-    price1 = shop1["bread"]
-    price2 = shop2["bread"]
-    price3 = shop3["bread"]
-    
-    if price1 <= price2:
-        if price1 <= price3:	
-            return shop1
-        else:
-            return shop3
-    else:
-        if price2 <= price3:
-            return shop2
-        else:
-            return shop3
-                    
-                    
-Alternatively you can use the min() function:
+    # The user might return a list which is correct but has elements in a different order to the expected output list
+    # This would return True for list1 != list2 and test_code() would think they are returning the wrong thing
+    # The method is changed here so that it sorts the lists before it compares them, that way order doesn't matter
+    @staticmethod
+    def test_code(code, func_name, io_dict, stdout_queue):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer), redirect_stderr(buffer):
+            try:
+                for args, expected_output in io_dict.items():
+                    namespace = {}
+                    exec(code + f"\noutput = {func_name}({args})", namespace)
 
-def price_check(shop1, shop2, shop3):
-    shops = (shop1, shop2, shop3)
-    return min(shops, key=lambda shop: shop["bread"])
+                    output = namespace["output"]
+                    # output was created inside exec's namespace, so must it be fetched from there
+
+                    if sorted(output) != sorted(expected_output): # sorts the outputs (update to original function)
+                        print(f"Your code failed with an input of ({args})")
+                        print(f"Expected output: {expected_output}")
+                        print(f"Actual output: {output}")
+                        break  # Skips the else block attached to the for loop
+                else:
+                    print("Your code was successful! Great job on helping Dave.")
+            except Exception as e:
+                print("error", e)
+        stdout_queue.put(buffer.getvalue())
+
+
+"""
+Solution:
+
+def search_house(rooms):
+	positions = []
+	for i in range(len(rooms)):
+		if rooms[i]:
+			positions.append(i)
+	return positions
+	
 """
