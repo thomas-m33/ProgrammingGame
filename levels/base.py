@@ -9,7 +9,7 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 
 class BaseLevelPage(QWidget):
-    def __init__(self, back_method, level_info: str, func_name: str, parameters: str, io_checks: dict):
+    def __init__(self, back_method, level_info: str, func_name: str, parameters: str, io_checks):
         # level info will probably be updated so it can include images
         super().__init__()
         self.back_method = back_method # Method of MainWindow, goes back to the page stack index for level select screen
@@ -33,7 +33,7 @@ class BaseLevelPage(QWidget):
         self.editor.setTabStopDistance(4 * space_width)
 
         cursor = self.editor.textCursor()
-        cursor.insertText(f"def {self.func_name}({self.parameters}):")
+        cursor.insertText(self.get_starting_text())
         cursor.insertBlock()
         cursor.insertText("\t")
         self.editor.setTextCursor(cursor)
@@ -91,7 +91,7 @@ class BaseLevelPage(QWidget):
                 print("error", e)
         stdout_queue.put(buffer.getvalue())
 
-
+    # This method is repeated in some of the level files because I had to do polymorphism on it.
     @staticmethod
     def test_code(code, func_name, io_dict, stdout_queue):
         buffer = io.StringIO()
@@ -137,7 +137,10 @@ class BaseLevelPage(QWidget):
             text = stdout_queue.get().rstrip("\n")
             self.console.appendPlainText(text)
 
-
+    # Starting text needs to be different from the usual format in level 4. I made this method so I could do
+    # polymorphism on it in level4.py and not repeat the whole build_ui method.
+    def get_starting_text(self):
+        return f"def {self.func_name}({self.parameters}):"
 
 
 class CodeEditor(QPlainTextEdit):

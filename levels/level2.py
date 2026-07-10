@@ -1,16 +1,16 @@
-from base import BaseLevelPage
+from levels.base import BaseLevelPage
 
 
 class Level2Page(BaseLevelPage):
     def __init__(self, back_method):
-        level_info = ("Dave has a job at Pixel Bank. The bank has recently been working a new security system to "
-                      "verify transactions by analysing the digits of their transaction ID. As part of this system, "
-                      "the bank needs an algorithm that finds the sum of the digits in a number.\n\n"
-                      "Dave has been chosen as the employee to make this algorithm, but his boss is a very picky man. "
+        level_info = ("Dave has a job at Pixel Bank. The bank has recently been working on a new way to verify  "
+                      "transactions by looking at the digits of their transaction ID. As part of this system, "
+                      "they need an algorithm that finds the sum of the digits in a number.\n\n"
+                      "Dave has been chosen as the employee to make this algorithm, but his boss is a very picky man! "
                       "He will not accept the algorithm if it is over six lines long (including the function "
                       "definition).\n\n"
-                      "You will need to  program the function sum_digits so that it returns the sum of the digits in "
-                      "num using less than six lines. num will be a positive integer.\n\n"
+                      "You will need to program the function sum_digits in six or less lines so that it returns the "
+                      "sum of the digits in num. Note that num will be a positive integer.\n\n"
                       "Example:\n"
                       "num = 123\n"
                       "return 6\n\n"
@@ -26,7 +26,6 @@ class Level2Page(BaseLevelPage):
                    '235421187': 33
                    }
         # Keys are inputs, values are the expected output of the function
-        # Some dictionaries have more entries to distinguish them from other shops with the same bread price
 
         super().__init__(back_method, level_info, func_name, parameters, io_dict)
 

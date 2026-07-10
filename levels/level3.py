@@ -1,4 +1,4 @@
-from base import BaseLevelPage
+from levels.base import BaseLevelPage
 
 
 class Level3Page(BaseLevelPage):
@@ -14,8 +14,8 @@ class Level3Page(BaseLevelPage):
                       "Example:\n"
                       "shop1 = {\"bread\": 5, \"apple\": 2}\n"
                       "shop2 = {\"bread\": 3.50, \"orange\": 1}\n"
-                      "shop3 = {\"bread\": 3.50, \"banana\": 1.50}\n\n"
-                      "return {\"bread\": 3.50, \"orange\": 1}\n")
+                      "shop3 = {\"bread\": 3.50, \"banana\": 1.50}\n"
+                      "return shop2")
 
         func_name = "price_check"
         parameters = "shop1, shop2, shop3"

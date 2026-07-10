@@ -1,6 +1,6 @@
+from levels.base import BaseLevelPage
 import io
 from contextlib import redirect_stdout, redirect_stderr
-from base import BaseLevelPage
 
 
 class Level1Page(BaseLevelPage):
@@ -42,7 +42,7 @@ class Level1Page(BaseLevelPage):
                     output = namespace["output"]
                     # output was created inside exec's namespace, so must it be fetched from there
 
-                    if sorted(output) != sorted(expected_output): # sorts the outputs (update to original function)
+                    if sorted(output) != sorted(expected_output): # sorts the outputs
                         print(f"Your code failed with an input of ({args})")
                         print(f"Expected output: {expected_output}")
                         print(f"Actual output: {output}")
