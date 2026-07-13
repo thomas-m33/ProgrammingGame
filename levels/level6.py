@@ -1,10 +1,12 @@
 from levels.base import BaseLevelPage
 
 class Level6Page(BaseLevelPage):
+    success_text = "Your code was successful! Dave's kids were no match for your mighty search algorithm."
+
     def __init__(self, back_method):
-        level_info = ("Dave is back at home with his kids now who have challenged him to another game of hide and "
-                      "seek. They seem to have gotten even better at hiding, so he will need to search his house much "
-                      "more carefully to have any chance of finding them!\n\n"
+        level_info = ("Dave is back at home with his kids now, who have challenged him to another game of hide and "
+                      "seek. They seem to have gotten even better at hiding so he will need to search his house much "
+                      "more carefully to have any chance of finding them.\n\n"
                       "Dave now needs to use a 2D array to more accurately map out the areas of his house. Each entry "
                       "inside the array will either be True if one of his kids is in that spot or False otherwise.\n\n"
                       "Your job is to search the 2D array 'house_map' and return a list with all the index pairs where "

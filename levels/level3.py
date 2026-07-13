@@ -1,7 +1,8 @@
 from levels.base import BaseLevelPage
 
-
 class Level3Page(BaseLevelPage):
+    success_text = "Your code was successful! Dave was able to save a few more dollars with your help."
+
     def __init__(self, back_method):
         level_info = ("Unfortunately, Dave has been laid off from his job and he's now on a budget. "
                       "He wants to buy some bread from the shops but he isn't sure where it would be cheapest.\n\n"
@@ -51,6 +52,7 @@ def price_check(shop1, shop2, shop3):
         else:
             return shop3
 
+------------------------------
 
 Alternatively you can use the min() function:
 

@@ -1,13 +1,12 @@
 from levels.base import BaseLevelPage
-import io
-from contextlib import redirect_stdout, redirect_stderr
-
 
 class Level1Page(BaseLevelPage):
+    success_text = "Your code was successful! Dave finally won a game of hide and seek against his kids."
+
     def __init__(self, back_method):
         level_info = ("Dave loves to play hide and seek with his kids, but they've gotten too good at hiding recently! "
                       "He needs you to make an algorithm that will help him find them.\n\n"
-                      "Each index in the list 'rooms' represents a different room of Dave's house where his kids could "
+                      "Each index in the list rooms represents a different room of Dave's house where his kids could "
                       "be hiding. If rooms[index] == True, then at least one of his kids is at that position.\n\n"
                       "Dave needs you to program the function search_house so that it returns a list with every index "
                       "that his kids can be found at.\n\n"
@@ -27,32 +26,6 @@ class Level1Page(BaseLevelPage):
 
         super().__init__(back_method, level_info, func_name, parameters, io_dict)
 
-    # The user might return a list which is correct but has elements in a different order to the expected output list
-    # This would return True for list1 != list2 and test_code() would think they are returning the wrong thing
-    # The method is changed here so that it sorts the lists before it compares them, that way order doesn't matter
-    @staticmethod
-    def test_code(code, func_name, io_dict, stdout_queue):
-        buffer = io.StringIO()
-        with redirect_stdout(buffer), redirect_stderr(buffer):
-            try:
-                for args, expected_output in io_dict.items():
-                    namespace = {}
-                    exec(code + f"\noutput = {func_name}({args})", namespace)
-
-                    output = namespace["output"]
-                    # output was created inside exec's namespace, so must it be fetched from there
-
-                    if sorted(output) != sorted(expected_output): # sorts the outputs
-                        print(f"Your code failed with an input of ({args})")
-                        print(f"Expected output: {expected_output}")
-                        print(f"Actual output: {output}")
-                        break  # Skips the else block attached to the for loop
-                else:
-                    print("Your code was successful! Great job on helping Dave.")
-            except Exception as e:
-                print("error", e)
-        stdout_queue.put(buffer.getvalue())
-
 
 """
 Solution:
@@ -65,3 +38,4 @@ def search_house(rooms):
 	return positions
 	
 """
+

@@ -1,6 +1,9 @@
 from levels.base import BaseLevelPage
 
 class Level5Page(BaseLevelPage):
+    success_text = ("Your code was successful! The police were stunned by Dave's brilliance and let him go with a "
+                    "warning.")
+
     def __init__(self, back_method):
         level_info = ("Uh oh. Dave accidentally set off an alarm on his way out of the store and now the police are "
                       "coming to question him... Not to worry though. He is a very clever man and has thought up a "
@@ -19,16 +22,17 @@ class Level5Page(BaseLevelPage):
         func_name = "answer"
         parameters = "question"
 
-        io_dict = {"Is your name Dave?": "Yes",
-                   "Did you steal from here?": "No",
-                   "How was your day?": "Yes",
-                   "You're a thief aren't you.": "Yes",
-                   "Did you know stealing is against the law?": "No",
-                   "Stealing is what you spend your time doing?": "No"
+        io_dict = {"'Is your name Dave?'": "Yes",
+                   "'Did you steal from here?'": "No",
+                   "'How was your day?'": "Yes",
+                   "'Are you a thief?'": "Yes",
+                   "'Did you know stealing is against the law?'": "No",
+                   "'Stealing is what you spend your time doing?'": "No"
                    }
         # Keys are inputs, values are the expected output of the function
 
         super().__init__(back_method, level_info, func_name, parameters, io_dict)
+
 
 
 """
@@ -38,20 +42,21 @@ def answer(question):
   start_index = 0
   stop_index = 5
 
-  while end_index <= len(question):
+  while stop_index <= len(question):
     if question[start_index : stop_index].lower() == "steal":
-      return "Yes"
+      return "No"
     start_index += 1
     stop_index += 1
-  return "No"
+  return "Yes"
   
+------------------------------
 
 This can be done much more efficiently if you know how to use the 'in' keyword on a string
 
 def answer(question):
   if "steal" in question.lower():
-    return "Yes"
+    return "No"
   else:
-    return "False"
+    return "Yes"
 
 """

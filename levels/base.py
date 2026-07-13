@@ -9,6 +9,8 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 
 class BaseLevelPage(QWidget):
+    success_text = "Your code was successful! Great job on helping Dave."
+
     def __init__(self, back_method, level_info: str, func_name: str, parameters: str, io_checks):
         # level info will probably be updated so it can include images
         super().__init__()
@@ -78,7 +80,6 @@ class BaseLevelPage(QWidget):
             QSizePolicy.Policy.Expanding
         )
 
-
     # This needs to be a static method because otherwise Python will throw a pickling error
     # Also makes sure you can't mess with the class methods or buttons
     @staticmethod
@@ -86,33 +87,60 @@ class BaseLevelPage(QWidget):
         buffer = io.StringIO()
         with redirect_stdout(buffer), redirect_stderr(buffer):  # Errors and print statements redirected to buffer
             try:
-                exec(code)
+                exec(code, {}) # The {} gives exec an empty namespace to use
             except Exception as e:
-                print("error", e)
+                print("error:", e)
         stdout_queue.put(buffer.getvalue())
 
-    # This method is repeated in some of the level files because I had to do polymorphism on it.
     @staticmethod
-    def test_code(code, func_name, io_dict, stdout_queue):
+    def run_tests(code, func_name, io_dict, success_text):
+        def fail_msg(args, expected_output, output):
+            if "\n" in expected_output:
+                print(f"Your code failed with an input of ({args})")
+                print(f"Expected output:\n{expected_output}")
+                print(f"Actual output:\n{output}")
+            else:
+                print(f"Your code failed with an input of ({args})")
+                print(f"Expected output: {expected_output}")
+                print(f"Actual output: {output}")
+
+        if func_name not in code:
+            print(f"Your code is missing the function {func_name}")
+            return
+
+        for args, expected_output in io_dict.items():
+            namespace = {}
+            exec(code + f"\noutput = {func_name}({args})", namespace)
+            output = namespace["output"]
+            # output was created inside exec's namespace, so must it be fetched from there
+
+            if type(output) is list:
+                if sorted(output) != expected_output:
+                    fail_msg(args, expected_output, output)
+                    return
+            elif type(output) is str:
+                if output.strip() != expected_output:
+                    fail_msg(args, expected_output, output)
+                    return
+            else:
+                if output != expected_output:
+                    fail_msg(args, expected_output, output)
+                    return
+
+        # If the user passed all the tests, then a success message is displayed in the console
+        print(success_text)
+
+    @staticmethod
+    def test_code(Class, code, func_name, io_dict, stdout_queue):
         buffer = io.StringIO()
-        with redirect_stdout(buffer), redirect_stderr(buffer):
-            try:
-                for args, expected_output in io_dict.items():
-                    namespace = {}
-                    exec(code + f"\noutput = {func_name}({args})", namespace)
-
-                    output = namespace["output"]
-                    # output was created inside exec's namespace, so must it be fetched from there
-
-                    if output != expected_output:
-                        print(f"Your code failed with an input of ({args})")
-                        print(f"Expected output: {expected_output}")
-                        print(f"Actual output: {output}")
-                        break # Skips the else block attached to the for loop
-                else:
-                    print("Your code was successful! Great job on helping Dave.")
-            except Exception as e:
-                print("error", e)
+        if func_name in code:
+            with redirect_stdout(buffer), redirect_stderr(buffer):
+                try:
+                    Class.run_tests(code, func_name, io_dict, Class.success_text)
+                except Exception as e:
+                    print("error:", e)
+        else:
+            buffer.write(f"error: the function {func_name} is not in your code.")
         stdout_queue.put(buffer.getvalue())
 
     def safe_exec(self, test=False):
@@ -120,7 +148,7 @@ class BaseLevelPage(QWidget):
         if test:
             p = multiprocessing.Process(
                 target=self.test_code,
-                args=(self.editor.toPlainText(), self.func_name, self.io_checks, stdout_queue))
+                args=(self.__class__, self.editor.toPlainText(), self.func_name, self.io_checks, stdout_queue))
             p.start()
             p.join(3) # Wait up to 3 seconds
         else:
@@ -137,8 +165,6 @@ class BaseLevelPage(QWidget):
             text = stdout_queue.get().rstrip("\n")
             self.console.appendPlainText(text)
 
-    # Starting text needs to be different from the usual format in level 4. I made this method so I could do
-    # polymorphism on it in level4.py and not repeat the whole build_ui method.
     def get_starting_text(self):
         return f"def {self.func_name}({self.parameters}):"
 

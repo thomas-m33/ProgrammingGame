@@ -5,7 +5,9 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStackedWidget
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtCore import QUrl
 from menus import create_main_menu, create_level_select, create_settings_menu
-from levels import Level1Page, Level2Page, Level3Page, Level4Page, Level5Page, Level6Page
+from levels import (Level1Page, Level2Page, Level3Page, Level4Page, Level5Page,
+                    Level6Page, Level7Page, Level8Page, Level9Page, Level10Page)
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -32,22 +34,17 @@ class MainWindow(QWidget):
         main_menu = create_main_menu(self.stack, self.close)
         level_select = create_level_select(self.stack)
         settings_menu = create_settings_menu(self.stack, self.audio_output, self.toggle_fullscreen)
-        level1 = Level1Page(back_method = lambda: self.stack.setCurrentIndex(1))
-        level2 = Level2Page(back_method=lambda: self.stack.setCurrentIndex(1))
-        level3 = Level3Page(back_method=lambda: self.stack.setCurrentIndex(1))
-        level4 = Level4Page(back_method=lambda: self.stack.setCurrentIndex(1))
-        level5 = Level5Page(back_method=lambda: self.stack.setCurrentIndex(1))
-        level6 = Level6Page(back_method=lambda: self.stack.setCurrentIndex(1))
-
         self.stack.addWidget(main_menu) # Stack index 0 because it was added first
         self.stack.addWidget(level_select) # Index 1
-        self.stack.addWidget(settings_menu) # Index 2
-        self.stack.addWidget(level1) #...
-        self.stack.addWidget(level2)
-        self.stack.addWidget(level3)
-        self.stack.addWidget(level4)
-        self.stack.addWidget(level5)
-        self.stack.addWidget(level6)
+        self.stack.addWidget(settings_menu) # Index 2...
+
+        level_classes = [
+            Level1Page, Level2Page, Level3Page, Level4Page, Level5Page,
+            Level6Page, Level7Page, Level8Page, Level9Page, Level10Page
+        ]
+        for LevelClass in level_classes:
+            level_page = LevelClass(back_method=lambda: self.stack.setCurrentIndex(1))
+            self.stack.addWidget(level_page)
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.stack)
