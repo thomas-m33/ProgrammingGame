@@ -1,9 +1,12 @@
 from levels.base import BaseLevelPage
+import io
+from contextlib import redirect_stdout, redirect_stderr
+import random
 
 class Level4Page(BaseLevelPage):
     success_text = "Your code was successful! Dave unlocked the door and sneaked his way into the store..."
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Dave can't afford a present for his son's birthday this week because he lost his job. He would "
                       "never let his kids down though, so he's going to get his son a present by stealing it from the "
                       "store. Dave plans to show up in the dead of night, pick the lock on the store's door and quickly "
@@ -32,7 +35,25 @@ class Level4Page(BaseLevelPage):
         ]
         # These lists are used to both create the pick_pin function and test the user's algorithm
 
-        super().__init__(back_method, level_info, func_name, parameters, values_list)
+        super().__init__(level_info, func_name, parameters, values_list, sfx_player, back_method)
+
+    def build_ui(self):
+        super().build_ui()
+        self.editor.obscure_mode = True
+
+    @staticmethod
+    def try_code(code, stdout_queue):
+        buffer = io.StringIO()
+        def pick_pin(index):
+            arrangement = [random.choice([True, False]) for i in range(5)] # For the player to use during testing
+            return arrangement[index]
+
+        with redirect_stdout(buffer), redirect_stderr(buffer):  # Errors and print statements redirected to buffer
+            try:
+                exec(code, {"pick_pin": pick_pin})
+            except Exception as e:
+                print("error:", e)
+        stdout_queue.put(buffer.getvalue())
 
     @staticmethod
     def run_tests(code, func_name, values_list, success_text):
@@ -67,6 +88,3 @@ def pick_lock():
   return arrangement
   
 """
-
-# Lines of code are highlighted black once user presses enter on them
-# They can only un-highlight the line by deleting it

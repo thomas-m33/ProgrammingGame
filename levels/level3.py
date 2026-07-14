@@ -3,7 +3,7 @@ from levels.base import BaseLevelPage
 class Level3Page(BaseLevelPage):
     success_text = "Your code was successful! Dave was able to save a few more dollars with your help."
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Unfortunately, Dave has been laid off from his job and he's now on a budget. "
                       "He wants to buy some bread from the shops but he isn't sure where it would be cheapest.\n\n"
                       "The dictionaries shop1, shop2 and shop3 contain the prices of various items at "
@@ -31,7 +31,7 @@ class Level3Page(BaseLevelPage):
         # Keys are inputs, values are the expected output of the function
         # Some dictionaries have more entries to distinguish them from other shops with the same bread price
 
-        super().__init__(back_method, level_info, func_name, parameters, io_dict)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
 
 """
 Solution:

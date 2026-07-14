@@ -3,7 +3,7 @@ from levels.base import BaseLevelPage
 class Level1Page(BaseLevelPage):
     success_text = "Your code was successful! Dave finally won a game of hide and seek against his kids."
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Dave loves to play hide and seek with his kids, but they've gotten too good at hiding recently! "
                       "He needs you to make an algorithm that will help him find them.\n\n"
                       "Each index in the list rooms represents a different room of Dave's house where his kids could "
@@ -24,7 +24,7 @@ class Level1Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(back_method, level_info, func_name, parameters, io_dict)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
 
 
 """
@@ -38,4 +38,3 @@ def search_house(rooms):
 	return positions
 	
 """
-

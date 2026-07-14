@@ -7,7 +7,7 @@ from contextlib import redirect_stdout, redirect_stderr
 class Level8Page(BaseLevelPage):
     success_text = "Your code was successful! Dave found Gilbert's phone number and they had a great chat."
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Dave hasn't been having much luck on Linkedin, so he's now resorting to the most reliable way "
                       "of finding a job... nepotism! One of his friends named Gilbert is a very successful man who "
                       "could surely get Dave an interview at his company.\n\n"
@@ -70,7 +70,7 @@ class Level8Page(BaseLevelPage):
         }
         # Keys are inputs, values are the expected output of the algorithm
 
-        super().__init__(back_method, level_info, func_name, parameters, io_dict)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
 
     @staticmethod
     def run_tests(code, func_name, io_dict, success_text):
@@ -129,7 +129,7 @@ class Level8Page(BaseLevelPage):
         stdout_queue.put(buffer.getvalue())
 
     def get_starting_text(self):
-        return "# You don't need to write a function for this level\n\n"
+        return "# You don't need to write a function for this level\n"
 
 
 """

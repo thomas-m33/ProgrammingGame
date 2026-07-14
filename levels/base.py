@@ -1,8 +1,10 @@
 # This is a template for the levels
-
-from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSizePolicy
-from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics
-from PyQt6.QtCore import QRect, QSize, Qt
+import os
+import random
+from PyQt6.QtWidgets import (QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSizePolicy,
+                            QTextEdit)
+from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics, QTextCursor, QTextFormat
+from PyQt6.QtCore import QRect, QSize, Qt, QTimer, QUrl
 import re
 import multiprocessing
 import io
@@ -11,7 +13,7 @@ from contextlib import redirect_stdout, redirect_stderr
 class BaseLevelPage(QWidget):
     success_text = "Your code was successful! Great job on helping Dave."
 
-    def __init__(self, back_method, level_info: str, func_name: str, parameters: str, io_checks):
+    def __init__(self, level_info: str, func_name: str, parameters: str, io_checks, sfx_player, back_method):
         # level info will probably be updated so it can include images
         super().__init__()
         self.back_method = back_method # Method of MainWindow, goes back to the page stack index for level select screen
@@ -19,16 +21,19 @@ class BaseLevelPage(QWidget):
         self.func_name = func_name # Name of the function that using is writing their algorithm inside
         self.parameters = parameters # Parameters that the function is declared with.
         self.io_checks = io_checks # A dictionary of inputs and expected outputs, used for testing the user algorithm
+        self.sfx_player = sfx_player # A QMediaPlayer object for sound effects
         self.build_ui()
 
     def build_ui(self):
+
         main_layout = QHBoxLayout(self) #QHBoxLayout organises widgets horizontally from left to right
 
-        self.editor = CodeEditor()
+        self.editor = CodeEditor(self.sfx_player)
         self.console = ConsoleDisplay()
-        font = QFont("Consolas", 12)
-        self.editor.setFont(font)
-        self.console.setFont(font)
+        editor_font = QFont("Consolas", 12)
+        console_font = QFont("Consolas", 10)
+        self.editor.setFont(editor_font)
+        self.console.setFont(console_font)
 
         font_metrics = QFontMetrics(self.editor.font())
         space_width = font_metrics.horizontalAdvance(' ')
@@ -37,7 +42,8 @@ class BaseLevelPage(QWidget):
         cursor = self.editor.textCursor()
         cursor.insertText(self.get_starting_text())
         cursor.insertBlock()
-        cursor.insertText("\t")
+        if self.func_name:
+            cursor.insertText("\t")
         self.editor.setTextCursor(cursor)
         self.editor.setPlaceholderText("Type your code here...")
         self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap) # Disable line wrapping
@@ -45,8 +51,8 @@ class BaseLevelPage(QWidget):
         # Left half: code editor
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        left_layout.addWidget(self.editor, stretch=3)
-        left_layout.addWidget(self.console, stretch=1)
+        left_layout.addWidget(self.editor, stretch=5)
+        left_layout.addWidget(self.console, stretch=2)
 
         # Right half: displaying info and buttons
         right_panel = QWidget()
@@ -80,8 +86,8 @@ class BaseLevelPage(QWidget):
             QSizePolicy.Policy.Expanding
         )
 
+
     # This needs to be a static method because otherwise Python will throw a pickling error
-    # Also makes sure you can't mess with the class methods or buttons
     @staticmethod
     def try_code(code, stdout_queue):
         buffer = io.StringIO()
@@ -95,14 +101,14 @@ class BaseLevelPage(QWidget):
     @staticmethod
     def run_tests(code, func_name, io_dict, success_text):
         def fail_msg(args, expected_output, output):
-            if "\n" in expected_output:
+            if type(expected_output) is str and "\n" in expected_output: # Cleaner display for multi-line text
                 print(f"Your code failed with an input of ({args})")
-                print(f"Expected output:\n{expected_output}")
-                print(f"Actual output:\n{output}")
+                print(f"Expected return value:\n{expected_output}")
+                print(f"Actual return value:\n{output}")
             else:
                 print(f"Your code failed with an input of ({args})")
-                print(f"Expected output: {expected_output}")
-                print(f"Actual output: {output}")
+                print(f"Expected return value: {expected_output}")
+                print(f"Actual return value: {output}")
 
         if func_name not in code:
             print(f"Your code is missing the function {func_name}")
@@ -146,6 +152,11 @@ class BaseLevelPage(QWidget):
     def safe_exec(self, test=False):
         stdout_queue = multiprocessing.Queue()
         if test:
+            max_lines = self.editor.max_lines
+            if max_lines is not None and self.editor.blockCount() > max_lines:
+                self.console.appendPlainText(f"Your solution must be {max_lines} lines or less.")
+                return
+            self.console.appendPlainText("\nTesting algorithm...")
             p = multiprocessing.Process(
                 target=self.test_code,
                 args=(self.__class__, self.editor.toPlainText(), self.func_name, self.io_checks, stdout_queue))
@@ -180,8 +191,9 @@ class CodeEditor(QPlainTextEdit):
     }
     # For turning inputs like ( into ()
 
-    def __init__(self, parent=None):
+    def __init__(self, sfx_player, parent=None):
         super().__init__(parent)
+        self.sfx_player = sfx_player
 
         self.line_number_area = LineNumberArea(self)
 
@@ -195,6 +207,25 @@ class CodeEditor(QPlainTextEdit):
 
         self.update_line_number_area_width(0)
         # Set the initial width of the line number area (it isn't 0)
+
+        # For level 2 mechanic
+        self.max_lines = None
+
+        # For level 4 mechanic
+        self.obscure_mode = False
+        self._ignore_edits = False
+
+        # For level 7 mechanic
+        self.sabotage_mode = False
+        self.is_flashing_red = False
+        self.sabotage_timer = QTimer(self)
+        self.sabotage_timer.timeout.connect(self.start_deletion_warning)
+        self.flash_timer = QTimer(self)
+        self.flash_timer.timeout.connect(self.toggle_flash)
+
+        self.document().contentsChange.connect(self.on_contents_change)
+        self.selectionChanged.connect(self.on_selection_changed)
+
 
     def line_number_area_width(self) -> int:
         digits = len(str(self.blockCount()))
@@ -265,23 +296,205 @@ class CodeEditor(QPlainTextEdit):
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self._ignore_edits = True
+
+            if self.obscure_mode:
+                self.textCursor().block().setUserState(1)  # 1 = obscured
+
             cursor = self.textCursor()
             block_text = cursor.block().text()
-            indent = re.match(r"[ \t]*", block_text).group(0) # Match 0 or more spaces or tabs
+            indent = re.match(r"[ \t]*", block_text).group(0)  # Match 0 or more spaces or tabs
+            cursor.insertBlock()  # Go to next line
+            if len(block_text) > 1 and block_text[-1:] == ":":
+                cursor.insertText("\t")
 
-            cursor.insertBlock() # Go to next line
-            cursor.insertText(indent) # Insert the level of indenting detected by the regex matching
-            self.setTextCursor(cursor) # Move the cursor to the updated position
+            if self.obscure_mode:
+                cursor.block().setUserState(-1)
+
+            cursor.insertText(indent)  # Insert the level of indenting detected by the regex matching
+            self.setTextCursor(cursor)  # Move the cursor to the updated position
+
+            self.update_dynamic_highlighting()
             return
 
         elif event.text() in CodeEditor.KEY_PAIRS:
             cursor = self.textCursor()
             cursor.insertText(event.text() + CodeEditor.KEY_PAIRS[event.text()])
-            cursor.movePosition(cursor.MoveOperation.Left) # Places text cursor in the middle of the characters
+            cursor.movePosition(cursor.MoveOperation.Left)  # Places text cursor in the middle of the characters
             self.setTextCursor(cursor)
+
+            self._ignore_edits = False
             return
 
         super().keyPressEvent(event)
+
+    def on_contents_change(self, position, charsRemoved, charsAdded):
+        if not self.obscure_mode or self._ignore_edits:
+            return
+
+        # If text was typed or deleted, remove the "obscured" state from affected blocks
+        if charsRemoved > 0 or charsAdded > 0:
+            block = self.document().findBlock(position)
+            end_block = self.document().findBlock(position + charsAdded)
+
+            while block.isValid() and block.blockNumber() <= end_block.blockNumber():
+                if block.userState() != 2:
+                    block.setUserState(-1) # -1 is the default (un-obscured) state
+                block = block.next()
+
+            self.update_dynamic_highlighting()
+
+    def on_selection_changed(self):
+        if not self.obscure_mode:
+            return
+
+        cursor = self.textCursor()
+        has_obscured_selection = False
+
+        if cursor.hasSelection():
+            start_block = self.document().findBlock(cursor.selectionStart())
+            end_block = self.document().findBlock(cursor.selectionEnd())
+
+            block = start_block
+            while block.isValid() and block.blockNumber() <= end_block.blockNumber():
+                # If the highlight touches an obscured line...
+                if block.userState() == 1:
+                    has_obscured_selection = True
+                    break
+                block = block.next()
+
+        if has_obscured_selection:
+            # Override the system highlight to be dark grey on dark grey
+            self.setStyleSheet(
+                "QPlainTextEdit { selection-background-color: #777777; selection-color: #777777; }"
+            )
+        else:
+            # Clear the stylesheet to return to normal OS selection colors
+            self.setStyleSheet("")
+
+    def update_dynamic_highlighting(self):
+        extra_selections = []
+        block = self.document().firstBlock()
+
+        while block.isValid():
+            selection = None
+
+            # 1. Level 2 Mechanic (Max Lines)
+            if self.max_lines is not None and block.blockNumber() >= self.max_lines:
+                selection = QTextEdit.ExtraSelection()
+                fmt = selection.format
+                fmt.setBackground(QColor(40, 20, 20))  # dark red
+                selection.format = fmt
+
+            # 2. Level 4 Mechanic (Obscured Lines)
+            elif self.obscure_mode and block.userState() == 1:
+                selection = QTextEdit.ExtraSelection()
+                fmt = selection.format
+                # Pitch black text on pitch black background
+                fmt.setBackground(QColor(0, 0, 0))
+                fmt.setForeground(QColor(0, 0, 0))
+                selection.format = fmt
+
+            # Level 7 Mechanic (Line deletion) ---
+            elif self.sabotage_mode and block.userState() == 2 and self.is_flashing_red:
+                selection = QTextEdit.ExtraSelection()
+                fmt = selection.format
+                fmt.setBackground(QColor(255, 50, 50))  # Bright Red
+                fmt.setForeground(QColor(255, 255, 255))  # White text
+                fmt.setProperty(QTextFormat.Property.FullWidthSelection, True)
+                selection.format = fmt
+
+            # Apply the selection if a mechanic triggered it
+            if selection:
+                cursor = self.textCursor()
+                cursor.setPosition(block.position())
+                cursor.movePosition(
+                    QTextCursor.MoveOperation.EndOfBlock,
+                    QTextCursor.MoveMode.KeepAnchor
+                )
+                selection.cursor = cursor
+                extra_selections.append(selection)
+
+            block = block.next()
+
+        self.setExtraSelections(extra_selections)
+
+    def start_sabotage(self):
+        if self.sabotage_mode:
+            # Pick a random interval between 20s (20000ms) and 30s (30000ms)
+            interval = random.randint(20000, 30000)
+            self.sabotage_timer.start(interval)
+
+    def play_sound(self, filename):
+        sound_path = os.path.abspath(f"assets/sfx/{filename}")
+        self.sfx_player.setSource(QUrl.fromLocalFile(sound_path))
+        self.sfx_player.play()
+
+    def start_deletion_warning(self):
+        if self.sabotage_mode:
+            self.sabotage_timer.stop()  # Pause the main countdown
+
+            # Try to target a line that actually has text on it
+            total_blocks = self.document().blockCount()
+            valid_blocks = [i for i in range(1, total_blocks) if self.document().findBlockByNumber(i).text().strip()]
+
+            # Fallback to any block if the editor is completely empty
+            if not valid_blocks and total_blocks > 1:
+                valid_blocks = list(range(1, total_blocks))
+
+            # If the editor has no lines beneath the function definition, safety exit and reset timer
+            if not valid_blocks:
+                self.start_sabotage()
+                return
+
+            target_index = random.choice(valid_blocks)
+            block = self.document().findBlockByNumber(target_index)
+
+            # State 2 means the deletion mechanic is active
+            block.setUserState(2)
+
+            self.is_flashing_red = True
+            self.flash_timer.start(250)  # Toggle flash every 250 milliseconds
+
+            # Schedule the actual deletion in exactly 2 seconds (2000ms)
+            QTimer.singleShot(2000, self.execute_deletion)
+
+
+    def toggle_flash(self):
+        self.is_flashing_red = not self.is_flashing_red
+        if self.is_flashing_red:
+            self.play_sound("deletion warning.mp3")
+        self.update_dynamic_highlighting()
+
+    def execute_deletion(self):
+        self.flash_timer.stop()
+        self.is_flashing_red = False
+        deleted = False
+
+        # Find the targeted block
+        block = self.document().firstBlock()
+        while block.isValid():
+            if block.userState() == 2:
+                self._ignore_edits = True
+
+                cursor = QTextCursor(block)
+                cursor.movePosition(QTextCursor.MoveOperation.StartOfBlock)
+                cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
+                cursor.removeSelectedText()
+                cursor.deleteChar()
+
+                self._ignore_edits = False
+                deleted = True
+                break
+            block = block.next()
+
+        self.update_dynamic_highlighting()
+
+        if deleted:
+            self.play_sound("deletion complete.mp3")
+
+        # Restart the timer for the next sabotage event
+        self.start_sabotage()
 
 
 class LineNumberArea(QWidget):
@@ -301,5 +514,3 @@ class ConsoleDisplay(QPlainTextEdit):
         super().__init__()
         self.appendPlainText('# Output Console')
         self.setReadOnly(True)
-
-

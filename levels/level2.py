@@ -3,7 +3,7 @@ from levels.base import BaseLevelPage
 class Level2Page(BaseLevelPage):
     success_text = "Your code was successful! Dave's boss liked the algorithm, but he still had some bad news..."
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Dave has a job at the bank. This bank has recently been working on a new way to verify "
                       "transactions by looking at the digits of their transaction ID. As part of this system, "
                       "they need an algorithm that finds the sum of the digits in a number.\n\n"
@@ -28,7 +28,13 @@ class Level2Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(back_method, level_info, func_name, parameters, io_dict)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
+
+    def build_ui(self):
+        super().build_ui()
+        self.editor.max_lines = 6
+        self.editor.textChanged.connect(self.editor.update_dynamic_highlighting)
+        self.editor.update_dynamic_highlighting()
 
 """
 Solution:
@@ -49,6 +55,3 @@ def sum_digits(num):
   return sum(digits)
 
 """
-
-# Solution must be 6 lines or less
-# Extra lines that the user inserts are highlighted red in the editor

@@ -10,7 +10,7 @@ from .level6 import *
 from .level7 import *
 from .level8 import *
 from .level9 import *
-from.level10 import *
+from .level10 import *
 
 __all__ = ['Level1Page', 'Level2Page', 'Level3Page', 'Level4Page', 'Level5Page',
            'Level6Page', 'Level7Page', 'Level8Page', 'Level9Page', 'Level10Page']

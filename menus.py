@@ -1,5 +1,3 @@
-from typing import Callable
-
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy,
                              QCheckBox, QSlider)
@@ -74,31 +72,50 @@ def create_level_select(stack):
     page.setLayout(layout)
     return page
 
-def create_settings_menu(stack, audio_output, toggle_fullscreen):
-    page = QWidget()
-    main_layout = QHBoxLayout()
-    left_layout = QVBoxLayout()
-    left_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-    right_layout = QVBoxLayout() # This is padding, might find a better way of padding everything later
-    main_layout.addLayout(left_layout, stretch=1)
-    main_layout.addLayout(right_layout, stretch=1)
+class SettingsMenu(QWidget):
+    def __init__(self, stack, music_output, sfx_output, toggle_fullscreen):
+        super().__init__()
+        self.music_output = music_output
+        self.sfx_output = sfx_output
 
-    fullscreen_checkbox = QCheckBox("Fullscreen Mode")
-    volume_text = QLabel("Volume")
-    volume_slider = QSlider(Qt.Orientation.Horizontal)
-    volume_slider.setRange(0, 100) # 0 <= volume <= 1, but having a higher range makes the slider smoother
-    volume_slider.setValue(50)
-    back_button = QPushButton("Back")
+        main_layout = QHBoxLayout()
+        left_layout = QVBoxLayout()
+        left_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        right_layout = QVBoxLayout()
+        main_layout.addLayout(left_layout, stretch=1)
+        main_layout.addLayout(right_layout, stretch=1)
 
-    back_button.clicked.connect(lambda: stack.setCurrentIndex(0))
-    fullscreen_checkbox.toggled.connect(toggle_fullscreen)
-    volume_slider.valueChanged.connect(lambda value: audio_output.setVolume(value/200))
+        fullscreen_checkbox = QCheckBox("Fullscreen Mode")
+        music_volume_text = QLabel("Music")
+        music_volume_slider = QSlider(Qt.Orientation.Horizontal)
+        music_volume_slider.setRange(0, 100)
+        music_volume_slider.setValue(50)
+        sfx_volume_text = QLabel("Sound Effects")
+        sfx_volume_slider = QSlider(Qt.Orientation.Horizontal)
+        sfx_volume_slider.setRange(0, 100)
+        sfx_volume_slider.setValue(50)
+        back_button = QPushButton("Back")
 
-    left_layout.addWidget(QLabel("Settings"))
-    left_layout.addWidget(fullscreen_checkbox)
-    left_layout.addWidget(volume_text)
-    left_layout.addWidget(volume_slider)
-    left_layout.addWidget(back_button)
+        back_button.clicked.connect(lambda: stack.setCurrentIndex(0))
+        fullscreen_checkbox.toggled.connect(toggle_fullscreen)
 
-    page.setLayout(main_layout)
-    return page
+        music_volume_slider.valueChanged.connect(self.handle_music_volume_change)
+        sfx_volume_slider.valueChanged.connect(self.handle_sfx_volume_change)
+
+        left_layout.addWidget(QLabel("Settings"))
+        left_layout.addWidget(fullscreen_checkbox)
+        left_layout.addWidget(music_volume_text)
+        left_layout.addWidget(music_volume_slider)
+        left_layout.addWidget(sfx_volume_text)
+        left_layout.addWidget(sfx_volume_slider)
+        left_layout.addWidget(back_button)
+
+        self.setLayout(main_layout)
+
+    def handle_music_volume_change(self, value):
+        volume_float = value / 200
+        self.music_output.setVolume(volume_float)
+
+    def handle_sfx_volume_change(self, value):
+        volume_float = value / 200
+        self.sfx_output.setVolume(volume_float)

@@ -1,10 +1,11 @@
 from levels.base import BaseLevelPage
+from PyQt6.QtCore import pyqtSignal
 
 class Level7Page(BaseLevelPage):
     success_text = ("Your code was successful! Dave figured out that the loan sharks were offering him a horrible deal "
                     "and he declined the loan.")
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Some loan sharks have heard about Dave's poor finances and they've come to offer him a bit of "
                       "'help'. These are the details of the loan they offer to Dave:\n\n"
                       "• The loan begins on January 1st and Dave will be paid initial_amount. This amount also becomes "
@@ -19,7 +20,7 @@ class Level7Page(BaseLevelPage):
                       "the nearest dollar.\n\n"
                       "Example:\n"
                       "initial_amount = 8000\n"
-                      "monthly_rate = 0.1\n"
+                      "monthly_rate = 0.10\n"
                       "return 5643\n\n"
                       "The loan sharks are really scaring Dave though so he might accidentally delete some lines of "
                       "your code!"
@@ -29,18 +30,24 @@ class Level7Page(BaseLevelPage):
         parameters = "initial_amount, monthly_rate"
 
         io_dict = {
-            "500, 0.1": 0,
+            "500, 0.10": 0,
             "1000, 0.0": 0,
             "1500, 0.0": 0,
-            "1500, 0.1": 50,
+            "1500, 0.10": 50,
             "50000, 0.01": 18672,
             "100000, 0.01": 363817,
             "200000, 0.005": 863311,
         }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(back_method, level_info, func_name, parameters, io_dict)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
 
+    def activate_mechanic(self):
+        self.editor.sabotage_mode = True
+        self.editor.start_sabotage() # This won't do anything if sabotage mode is deactivated later
+
+    def deactivate_mechanic(self):
+        self.editor.start_sabotage_mode = False
 
 """
 Solution:
@@ -70,6 +77,3 @@ else:
     interest_paid = int(interest_paid) + 1
   
 """
-
-# Lines are randomly deleted with 3s warning. Deactivate during testing
-# Before deletion, line flashes red and a beeping sound effect plays to warn the player

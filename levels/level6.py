@@ -3,7 +3,7 @@ from levels.base import BaseLevelPage
 class Level6Page(BaseLevelPage):
     success_text = "Your code was successful! Dave's kids were no match for your mighty search algorithm."
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Dave is back at home with his kids now, who have challenged him to another game of hide and "
                       "seek. They seem to have gotten even better at hiding so he will need to search his house much "
                       "more carefully to have any chance of finding them.\n\n"
@@ -35,8 +35,7 @@ class Level6Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(back_method, level_info, func_name, parameters, io_dict)
-
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
 
 """
 Solution:

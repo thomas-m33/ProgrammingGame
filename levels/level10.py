@@ -4,7 +4,7 @@ class Level10Page(BaseLevelPage):
     success_text = ("Your code was successful! Dave passed the interview and finally managed to land a job. His "
                     "days of buying the cheapest bread are over!")
 
-    def __init__(self, back_method):
+    def __init__(self, sfx_player, back_method):
         level_info = ("Dave has made it to the final interview and he just needs to answer one more question to get "
                       "the job.\n\n"
                       "The algorithm that Dave needs to make is a random password generator. It needs to randomly "
@@ -26,7 +26,7 @@ class Level10Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(back_method, level_info, func_name, parameters, io_dict)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
 
     @staticmethod
     def run_tests(code, func_name, _, success_text):
@@ -42,7 +42,7 @@ class Level10Page(BaseLevelPage):
         for i in range(50):
             output = create_password()
             if type(output) is not str:
-                feedback = f"Your algorithm outputted something that isn't a string ({output})."
+                feedback = f"Your algorithm returned something that isn't a string ({output})."
                 break
             if len(output) <= 8:
                 feedback = f"Your algorithm generated a password which didn't have more than 8 characters ({output})."
@@ -63,14 +63,14 @@ class Level10Page(BaseLevelPage):
         if feedback is None:
             # The algorithm will now check whether the user's passwords are actually being randomly generated
 
-            # Finds characters which are in the same index across every password (not being randomly placed)
             same_indices_data = [(i, chars[0]) for i, chars in enumerate(zip(*output_collector)) if
                                  len(set(chars)) == 1]
+            # Finds characters which are in the same index across every password (not being randomly placed)
 
-            # Used for checking if all passwords are just rearrangements of the same few characters
             char_sets = [set(s) for s in output_collector]
             char_union = set.union(*char_sets)
             char_intersection = set.intersection(*char_sets)
+            # Used for checking if all passwords are just rearrangements of the same few characters
 
             if same_indices_data:
                 if len(same_indices_data) == 1:
@@ -80,15 +80,18 @@ class Level10Page(BaseLevelPage):
                     # Build details like "index 0 ('A'), index 4 ('!') and index 8 ('X')"
                     details = [f"index {index} ('{char}')" for index, char in same_indices_data]
                     formatted_details = ", ".join(details[:-1]) + " and " + details[-1]
-                    feedback = f"All your passwords have the same character at the {formatted_details}."
+                    feedback = f"All your passwords have the same character at {formatted_details}."
             elif char_union == char_intersection:
                 feedback = f"All your passwords have the same characters {tuple(char_union)}."
-                # This only converts char_union to a tuple so the characters will be in curly brackets
+                # This converts char_union to a tuple so the characters will be in round brackets
 
         if feedback is not None:
             print("Test failed:", feedback)
         else:
             print(success_text)
+
+    def get_starting_text(self):
+        return f"import random\n\ndef {self.func_name}({self.parameters}):"
 
 
 """
