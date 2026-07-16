@@ -47,7 +47,7 @@ class Level7Page(BaseLevelPage):
         self.editor.start_sabotage() # This won't do anything if sabotage mode is deactivated later
 
     def deactivate_mechanic(self):
-        self.editor.start_sabotage_mode = False
+        self.editor.sabotage_mode = False
 
 """
 Solution:

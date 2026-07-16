@@ -1,23 +1,97 @@
 import sys
 import os
-import random
 os.environ["QT_LOGGING_RULES"] = "qt.multimedia.*=false" # Stops media player data from being dumped into the terminal
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStackedWidget
+import random
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStackedWidget, QGridLayout
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtCore import QUrl, pyqtSignal
-from menus import create_main_menu, create_level_select, SettingsMenu
+from PyQt6.QtCore import QUrl, Qt
+from menus import create_level_select, SettingsMenu, MainMenuPage, BackgroundVideoView
 from levels import (Level1Page, Level2Page, Level3Page, Level4Page, Level5Page,
                     Level6Page, Level7Page, Level8Page, Level9Page, Level10Page)
+from styles import CustomTitleBar
 
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.setStyleSheet("""
+            /* --- Base State --- */
+            QPushButton {
+                background-color: #2D2D2D;
+                border: 1px solid #3C3C3C;
+                border-bottom: 1px solid #222222; /* Creates the subtle Windows 11 bevel */
+                border-radius: 4px;
+                color: #FFFFFF;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+                font-size: 14px;
+                padding: 6px 16px;
+            }
+            
+            /* --- Hover State --- */
+            QPushButton:hover {
+                background-color: #383838;
+                border: 1px solid #404040;
+                border-bottom: 1px solid #222222;
+            }
+            
+            /* --- Pressed State --- */
+            QPushButton:pressed {
+                background-color: #282828;
+                border: 1px solid #3C3C3C;
+                border-top: 1px solid #222222; /* Inverts the bevel to look pushed in */
+                color: rgba(255, 255, 255, 0.78); /* Text fades slightly on click */
+            }
+            
+            /* --- Disabled State --- */
+            QPushButton:disabled {
+                background-color: #1E1E1E;
+                border: 1px solid #2B2B2B;
+                color: #636363;
+            }
+            
+            /* --- Keyboard Focus State --- */
+            QPushButton:focus {
+                border: 1px solid #757575; 
+                /* You can change this to a brand color if you want an accent focus ring */
+                }
+                
+            /* --- Slider Track Base --- */
+            QSlider {
+                min-height: 20px; /* Gives the whole slider widget room to breathe */
+            }
+
+            QSlider::groove:horizontal {
+                height: 6px;       /* Fixed height for the horizontal bar */
+                background: #E0E0E0;
+            }
+
+            /* --- Left Side Bar --- */
+            QSlider::sub-page:horizontal {
+                background: #FF66C4;
+            }
+
+            /* --- Right Side Bar --- */
+            QSlider::add-page:horizontal {
+                background: #E0E0E0;
+            }
+
+            /* --- Handle --- */
+            QSlider::handle:horizontal {
+                background: #424242;
+                width: 16px;
+                height: 16px;
+                margin-top: -5px;
+                margin-bottom: -5px;
+                border-radius: 8px;
+            }
+        """)
+
         # Initialise window
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.CustomizeWindowHint)
         self.setWindowTitle("Dave's Algorithm Adventures")
         self.stack = QStackedWidget() # Holds multiple pages
-        self.setMinimumSize(852, 560)
+        self.setMinimumSize(880, 640)
 
         # Initialise audio
         # Since QMediaPlayer can only handle one audio stream at a time, we need to make separate ones for music and sfx
@@ -30,10 +104,11 @@ class MainWindow(QWidget):
         self.sfx_player.setAudioOutput(self.sfx_output)
 
         self.songs = [
+            "Above All.mp3",
             "Before the Night.mp3",
             "New Machines.mp3",
-            "Oort Cloud.mp3",
             "Resonance.mp3",
+            "Sunshower.mp3",
             "Synchronize.mp3"
         ]
         # All music by Home
@@ -45,12 +120,15 @@ class MainWindow(QWidget):
         self.play_current_song()
 
         # Build GUI
-        main_menu = create_main_menu(self.stack, self.close)
+        main_menu = MainMenuPage(self.stack, self.close)
         level_select = create_level_select(self.stack)
         settings_menu = SettingsMenu(self.stack, self.music_output, self.sfx_output, self.toggle_fullscreen)
         self.stack.addWidget(main_menu) # Stack index 0 because it was added first
         self.stack.addWidget(level_select) # Index 1
         self.stack.addWidget(settings_menu) # Index 2...
+
+        self.background = BackgroundVideoView()
+        self.background.start()
 
         level_classes = [
             Level1Page, Level2Page, Level3Page, Level4Page, Level5Page,
@@ -66,14 +144,36 @@ class MainWindow(QWidget):
 
         self.stack.currentChanged.connect(self.on_page_stack_changed)
 
+        content_host = QWidget()
+        content_host.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        content_layout = QGridLayout(content_host)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+
+        self.background.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.stack.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.stack.setStyleSheet("QStackedWidget { background: transparent; border: none; }")
+
+        content_layout.addWidget(self.background, 0, 0)
+        content_layout.addWidget(self.stack, 0, 0)
+
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.stack)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        self.title_bar = CustomTitleBar(self)
+        main_layout.addWidget(self.title_bar)
+        main_layout.addWidget(content_host)
         self.setLayout(main_layout)
+
+        # Preload the level videos so the transition from the menu video doesn't leave the screen empty for a bit
+        self.background.preload_level_videos()
 
     def toggle_fullscreen(self, toggle: bool):
         if toggle:
+            self.title_bar.hide()  # Remove custom title bar layout
             self.showFullScreen()
         else:
+            self.title_bar.show()  # Bring back title bar in windowed view modes
             self.showNormal()
 
     def play_current_song(self):
@@ -88,17 +188,53 @@ class MainWindow(QWidget):
                 self.song_index = 0
             self.play_current_song()
 
-    # Only reason this function exists is to fix a bug with level 7. There might be a better way to do this
     def on_page_stack_changed(self):
         if self.stack.currentIndex() == 9: # Checks if the page is level 7
             self.level_pages[6].activate_mechanic()
         else:
             self.level_pages[6].deactivate_mechanic()
 
+        # Set overlays and backgrounds
+        match self.stack.currentIndex():
+            case 0:
+                self.background.overlay.setVisible(False)
+                self.background.show_video("menu")
+            case 1 | 2:
+                self.background.set_overlay_for_menus()
+                self.background.show_video("menu")
+            case 3 | 4:
+                self.background.set_overlay_for_levels()
+                self.background.show_video("purple stars")
+            case 5 | 6:
+                self.background.set_overlay_for_levels()
+                self.background.show_video("blue stars")
+            case 7 | 9:
+                self.background.set_overlay_for_levels()
+                self.background.show_video("red stars")
+            case 8 | 10:
+                self.background.set_overlay_for_levels()
+                self.background.show_video("pink stars")
+            case 11 | 12:
+                self.background.set_overlay_for_levels()
+                self.background.show_video("cyan stars")
+
+    # Fixing a bug where the app wouldn't close properly
+    def closeEvent(self, event):
+        self.background.stop()
+        self.music_player.stop()
+        self.sfx_player.stop()
+
+        # Detach sources so audio/video is fully released
+        self.music_player.setSource(QUrl())
+        self.sfx_player.setSource(QUrl())
+
+        # Close the app
+        event.accept()
+
 
 if __name__ == "__main__":
-# Only initialise the app if this is the main instance of it (not a multiprocess child)
-# When the child imports this file it will set __name__ to "__main.py__" and not "__main__"
+    # Only initialise the app if this is the main instance of it (not a multiprocess child)
+    # When the child imports this file it will set __name__ to "__main.py__" and not "__main__"
 
     app = QApplication(sys.argv) # Creates the application object and passes any command line arguments into it.
 

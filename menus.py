@@ -1,68 +1,186 @@
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy,
-                             QCheckBox, QSlider)
-from PyQt6.QtGui import QPixmap
+import os
+from PyQt6.QtCore import Qt, QUrl, QTimer, QSizeF
+from PyQt6.QtWidgets import (
+    QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QSizePolicy, QCheckBox, QSlider, QGraphicsView, QGraphicsScene
+)
+from PyQt6.QtGui import QPixmap, QBrush, QColor
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtMultimediaWidgets import QGraphicsVideoItem
+from styles import MainMenuButton, ProgressButton
 
-def create_main_menu(stack, quit_method):
-    page = QWidget()
-    main_layout = QHBoxLayout()
-    left_layout = QVBoxLayout()
-    right_layout = QVBoxLayout()
-    main_layout.addLayout(left_layout, stretch = 1)
-    main_layout.addSpacing(50)  # Puts 50 pixels of empty space between left and right side
-    main_layout.addLayout(right_layout, stretch = 1)
-    main_layout.setContentsMargins(50, 50, 50, 50)
+# Maybe this should be in a different file...
+class BackgroundVideoView(QGraphicsView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
-    title = QLabel()
-    pixmap1 = QPixmap("assets/title.png")
-    scaled_pixmap1 = pixmap1.scaled(320, 180)
-    title.setPixmap(scaled_pixmap1)
-    title.setScaledContents(True)
+        self.scene = QGraphicsScene(self)
+        self.setScene(self.scene)
 
-    button1 = QPushButton("Play") # QPushButton is an object type which creates a pushable button
-    button2 = QPushButton("Settings")
-    button3 = QPushButton("Quit")
-    button1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-    button2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-    button3.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFrameShape(QGraphicsView.Shape.NoFrame)
+        self.setBackgroundBrush(QBrush(QColor("black")))
 
-    button1.clicked.connect(lambda: stack.setCurrentIndex(1)) # 0 = main menu, 1 = level select
-    button2.clicked.connect(lambda: stack.setCurrentIndex(2)) # Will add settings later
-    button3.clicked.connect(quit_method)
-    # Connects the button objects to a function that will run when they are clicked
+        self.media_players = {}
+        self.video_items = {}
 
-    dave_pic = QLabel()
-    pixmap2 = QPixmap("assets/dave.png")
-    scaled_pixmap2 = pixmap2.scaled(250, 250)
-    dave_pic.setPixmap(scaled_pixmap2)
+        menu_video_item = QGraphicsVideoItem()
+        self.video_items["menu"] = menu_video_item
+        self.scene.addItem(menu_video_item)
+        self.current_video_item = menu_video_item
 
-    left_layout.addWidget(title)
-    left_layout.addWidget(dave_pic)
-    right_layout.addWidget(button1)
-    right_layout.addWidget(button2)
-    right_layout.addWidget(button3)
-    # Adds all the objects defined above to the layout
+        menu_media_player = QMediaPlayer(self)
+        self.media_players["menu"] = menu_media_player
+        menu_media_player.setVideoOutput(menu_video_item)
+        self.current_media_player = menu_media_player
 
-    page.setLayout(main_layout)
-    return page
+        self.overlay = QWidget(self.viewport())
+        self.overlay.hide()
+        self.overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        video_path = os.path.abspath("assets/backgrounds/menu bg.mp4")
+        self.current_media_player.setSource(QUrl.fromLocalFile(video_path))
+        self.current_media_player.setLoops(-1)
+
+        self.current_video_item.nativeSizeChanged.connect(self.update_video_geometry)
+        QTimer.singleShot(50, self.update_video_geometry)
+
+    def start(self):
+        self.current_media_player.play()
+
+    def stop(self):
+        self.current_media_player.stop()
+        self.current_media_player.setSource(QUrl())
+        self.current_media_player.setVideoOutput(None)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.overlay.resize(self.viewport().size())
+        self.update_video_geometry()
+
+    def set_overlay_for_menus(self):
+        self.overlay.setStyleSheet("background-color: rgba(20, 20, 20, 0.7);")
+        self.overlay.setVisible(True)
+
+    def set_overlay_for_levels(self):
+        self.overlay.setStyleSheet("background-color: rgba(10, 10, 10, 0.9);")
+        self.overlay.setVisible(True)
+
+    def update_video_geometry(self):
+        w = float(self.width())
+        h = float(self.height())
+        if w <= 0 or h <= 0:
+            return
+
+        self.scene.setSceneRect(0, 0, w, h)
+
+        native_size = self.current_video_item.nativeSize()
+        if native_size.width() <= 0 or native_size.height() <= 0:
+            self.current_video_item.setSize(QSizeF(w, h))
+        else:
+            self.current_video_item.setSize(
+                native_size.scaled(w, h, Qt.AspectRatioMode.KeepAspectRatioByExpanding)
+            )
+
+        vx = (w - self.current_video_item.size().width()) / 2
+        vy = (h - self.current_video_item.size().height()) / 2
+        self.current_video_item.setPos(vx, vy)
+
+    def set_background_video(self, path):
+        self.current_media_player.stop()
+        self.current_media_player.setSource(QUrl.fromLocalFile(path))
+        self.current_media_player.play()
+
+    def preload_level_videos(self):
+        for name in ("red stars", "blue stars", "cyan stars", "purple stars", "pink stars"):
+            player = QMediaPlayer(self)
+            player.setLoops(-1)
+            item = QGraphicsVideoItem()
+            self.scene.addItem(item)
+            player.setVideoOutput(item)
+
+            video_path = os.path.abspath(f"assets/backgrounds/{name}.mp4")
+            player.setSource(QUrl.fromLocalFile(video_path))
+
+            item.hide()
+            self.media_players[name] = player
+            self.video_items[name] = item
+
+    def show_video(self, name):
+        if name not in self.media_players or name not in self.video_items:
+            return
+
+        self.current_video_item.hide()
+
+        self.current_video_item = self.video_items[name]
+        self.current_media_player = self.media_players[name]
+
+        self.current_video_item.show()
+        self.current_video_item.nativeSizeChanged.connect(self.update_video_geometry)
+        self.update_video_geometry()
+        self.current_media_player.play()
+
+
+class MainMenuPage(QWidget):
+    def __init__(self, stack, quit_method):
+        super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        main_layout = QHBoxLayout()
+        left_layout = QVBoxLayout()
+        right_layout = QVBoxLayout()
+        main_layout.addLayout(left_layout, stretch=1)
+        main_layout.addSpacing(50)
+        main_layout.addLayout(right_layout, stretch=1)
+        main_layout.setContentsMargins(50, 50, 50, 50)
+
+        title = QLabel()
+        pixmap1 = QPixmap("assets/title.png")
+        scaled_pixmap1 = pixmap1.scaled(320, 180)
+        title.setPixmap(scaled_pixmap1)
+        title.setScaledContents(True)
+
+        button1 = MainMenuButton("Play")
+        button2 = MainMenuButton("Settings")
+        button3 = MainMenuButton("Quit")
+        button1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        button2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        button3.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        button1.clicked.connect(lambda: stack.setCurrentIndex(1))
+        button2.clicked.connect(lambda: stack.setCurrentIndex(2))
+        button3.clicked.connect(quit_method)
+
+        dave_pic = QLabel()
+        pixmap2 = QPixmap("assets/dave.png")
+        scaled_pixmap2 = pixmap2.scaled(250, 250)
+        dave_pic.setPixmap(scaled_pixmap2)
+
+        left_layout.addWidget(title)
+        left_layout.addWidget(dave_pic)
+        right_layout.addWidget(button1)
+        right_layout.addWidget(button2)
+        right_layout.addWidget(button3)
+
+        self.setLayout(main_layout)
 
 
 def create_level_select(stack):
     page = QWidget()
     layout = QVBoxLayout()
+    grid_layout = QGridLayout()
+
+    page.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
     layout.addWidget(QLabel("Level Select"))
-
-    grid_layout = QGridLayout() # Buttons use QGridLayout
-
     for i in range(10):
-        button = QPushButton(str(i + 1))
-        row = i // 5 # 5 buttons per row
+        button = ProgressButton(str(i + 1), completed=True)
+        row = i // 5
         col = i % 5
         grid_layout.addWidget(button, row, col)
         button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        button.clicked.connect(lambda _, n=i: stack.setCurrentIndex(n + 3)) # Levels start at index 2
-        # The clicked method also passes True or False to the first argument of lambda so it needs to be a throwaway
+        button.clicked.connect(lambda _, n=i: stack.setCurrentIndex(n + 3))
 
     back_button = QPushButton("Back")
     back_button.clicked.connect(lambda: stack.setCurrentIndex(0))
@@ -72,11 +190,14 @@ def create_level_select(stack):
     page.setLayout(layout)
     return page
 
+
 class SettingsMenu(QWidget):
     def __init__(self, stack, music_output, sfx_output, toggle_fullscreen):
         super().__init__()
         self.music_output = music_output
         self.sfx_output = sfx_output
+
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         main_layout = QHBoxLayout()
         left_layout = QVBoxLayout()
