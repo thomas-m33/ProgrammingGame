@@ -1,3 +1,4 @@
+import multiprocessing
 import sys
 import os
 os.environ["QT_LOGGING_RULES"] = "qt.multimedia.*=false" # Stops media player data from being dumped into the terminal
@@ -15,12 +16,12 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
+        # This should be moved into styles.py
         self.setStyleSheet("""
-            /* --- Base State --- */
             QPushButton {
                 background-color: #2D2D2D;
                 border: 1px solid #3C3C3C;
-                border-bottom: 1px solid #222222; /* Creates the subtle Windows 11 bevel */
+                border-bottom: 1px solid #222222;
                 border-radius: 4px;
                 color: #FFFFFF;
                 font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
@@ -28,55 +29,47 @@ class MainWindow(QWidget):
                 padding: 6px 16px;
             }
             
-            /* --- Hover State --- */
             QPushButton:hover {
                 background-color: #383838;
                 border: 1px solid #404040;
                 border-bottom: 1px solid #222222;
             }
             
-            /* --- Pressed State --- */
             QPushButton:pressed {
                 background-color: #282828;
                 border: 1px solid #3C3C3C;
-                border-top: 1px solid #222222; /* Inverts the bevel to look pushed in */
-                color: rgba(255, 255, 255, 0.78); /* Text fades slightly on click */
+                border-top: 1px solid #222222;
+                color: rgba(255, 255, 255, 0.78);
             }
             
-            /* --- Disabled State --- */
             QPushButton:disabled {
                 background-color: #1E1E1E;
                 border: 1px solid #2B2B2B;
                 color: #636363;
             }
             
-            /* --- Keyboard Focus State --- */
             QPushButton:focus {
                 border: 1px solid #757575; 
-                /* You can change this to a brand color if you want an accent focus ring */
                 }
                 
-            /* --- Slider Track Base --- */
+
             QSlider {
-                min-height: 20px; /* Gives the whole slider widget room to breathe */
+                min-height: 20px;
             }
 
             QSlider::groove:horizontal {
-                height: 6px;       /* Fixed height for the horizontal bar */
+                height: 6px;
                 background: #E0E0E0;
             }
 
-            /* --- Left Side Bar --- */
             QSlider::sub-page:horizontal {
                 background: #FF66C4;
             }
 
-            /* --- Right Side Bar --- */
             QSlider::add-page:horizontal {
                 background: #E0E0E0;
             }
 
-            /* --- Handle --- */
             QSlider::handle:horizontal {
                 background: #424242;
                 width: 16px;
@@ -85,13 +78,54 @@ class MainWindow(QWidget):
                 margin-bottom: -5px;
                 border-radius: 8px;
             }
+            
+            
+            QCheckBox {
+                padding-top: 8px;
+                padding-bottom: 8px;
+                color: #F0F0F0;
+                spacing: 12px;
+                font-weight: 500;
+            }
+
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #FFFFFF;
+                border-radius: 5px;
+                background-color: rgba(45, 45, 45, 0.3);
+            }
+
+            QCheckBox::indicator:hover {
+                border: 2px solid #FF99D8;
+                background-color: rgba(255, 102, 196, 0.1);
+            }
+            
+            QCheckBox::indicator:checked {
+                background-color: #FF66C4;
+                border: 2px solid #2D2D2F;
+            }
+            
+            QCheckBox::indicator:checked:hover {
+                background-color: #FF99D8; /* Lighter pink when hovering while checked */
+                border: 2px solid #3D3D3D; /* Subtly lighter border on hover */
+            }
+
+            QCheckBox:disabled {
+                color: #555555;
+            }
+            
+            QCheckBox::indicator:disabled {
+                border: 2px solid #2D2D2D;
+                background-color: transparent;
+            }
         """)
 
         # Initialise window
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.CustomizeWindowHint)
         self.setWindowTitle("Dave's Algorithm Adventures")
         self.stack = QStackedWidget() # Holds multiple pages
-        self.setMinimumSize(880, 640)
+        self.setMinimumSize(920, 640)
 
         # Initialise audio
         # Since QMediaPlayer can only handle one audio stream at a time, we need to make separate ones for music and sfx
@@ -102,6 +136,9 @@ class MainWindow(QWidget):
         self.sfx_player = QMediaPlayer()
         self.sfx_output = QAudioOutput()
         self.sfx_player.setAudioOutput(self.sfx_output)
+
+        self.music_output.setVolume(0.25)
+        self.sfx_output.setVolume(0.25)
 
         self.songs = [
             "Above All.mp3",
@@ -116,13 +153,13 @@ class MainWindow(QWidget):
         random.shuffle(self.songs)
         self.song_index = 0
         self.music_player.mediaStatusChanged.connect(self.on_media_status_changed)
-        self.music_output.setVolume(0.25) # This will be a value decided by the user in future versions
         self.play_current_song()
 
         # Build GUI
-        main_menu = MainMenuPage(self.stack, self.close)
-        level_select = create_level_select(self.stack)
-        settings_menu = SettingsMenu(self.stack, self.music_output, self.sfx_output, self.toggle_fullscreen)
+        main_menu = MainMenuPage(self.stack, self.close, self.sfx_player)
+        level_select = create_level_select(self.stack, self.sfx_player)
+        settings_menu = SettingsMenu(self.stack, self.music_output, self.sfx_output, self.sfx_player,
+                                     self.toggle_fullscreen)
         self.stack.addWidget(main_menu) # Stack index 0 because it was added first
         self.stack.addWidget(level_select) # Index 1
         self.stack.addWidget(settings_menu) # Index 2...
@@ -202,21 +239,15 @@ class MainWindow(QWidget):
             case 1 | 2:
                 self.background.set_overlay_for_menus()
                 self.background.show_video("menu")
-            case 3 | 4:
+            case 3 | 4 | 5 | 6:
                 self.background.set_overlay_for_levels()
                 self.background.show_video("purple stars")
-            case 5 | 6:
-                self.background.set_overlay_for_levels()
-                self.background.show_video("blue stars")
             case 7 | 9:
                 self.background.set_overlay_for_levels()
                 self.background.show_video("red stars")
-            case 8 | 10:
+            case 8 | 10 | 11 | 12:
                 self.background.set_overlay_for_levels()
                 self.background.show_video("pink stars")
-            case 11 | 12:
-                self.background.set_overlay_for_levels()
-                self.background.show_video("cyan stars")
 
     # Fixing a bug where the app wouldn't close properly
     def closeEvent(self, event):
@@ -233,9 +264,7 @@ class MainWindow(QWidget):
 
 
 if __name__ == "__main__":
-    # Only initialise the app if this is the main instance of it (not a multiprocess child)
-    # When the child imports this file it will set __name__ to "__main.py__" and not "__main__"
-
+    multiprocessing.freeze_support() # Do not allow multiprocessing children past this point
     app = QApplication(sys.argv) # Creates the application object and passes any command line arguments into it.
 
     window = MainWindow()

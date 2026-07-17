@@ -1,14 +1,15 @@
 # This is a template for the levels
-import os
 import random
-from PyQt6.QtWidgets import (QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSizePolicy,
+from PyQt6.QtWidgets import (QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QPushButton, QSizePolicy,
                             QTextEdit)
-from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics, QTextCursor, QTextFormat
-from PyQt6.QtCore import QRect, QSize, Qt, QTimer, QUrl
+from PyQt6.QtGui import QPainter, QColor, QFontMetrics, QTextCursor, QTextFormat
+from PyQt6.QtCore import QRect, QSize, Qt, QTimer
 import re
 import multiprocessing
 import io
 from contextlib import redirect_stdout, redirect_stderr
+from styles import RegularText, StyledCodeEditor, ConsoleDisplay
+from utils import *
 
 class BaseLevelPage(QWidget):
     success_text = "Your code was successful! Great job on helping Dave."
@@ -30,10 +31,6 @@ class BaseLevelPage(QWidget):
 
         self.editor = CodeEditor(self.sfx_player)
         self.console = ConsoleDisplay()
-        editor_font = QFont("Consolas", 12)
-        console_font = QFont("Consolas", 10)
-        self.editor.setFont(editor_font)
-        self.console.setFont(console_font)
 
         font_metrics = QFontMetrics(self.editor.font())
         space_width = font_metrics.horizontalAdvance(' ')
@@ -57,7 +54,7 @@ class BaseLevelPage(QWidget):
         # Right half: displaying info and buttons
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        info = QLabel(self.level_info)
+        info = RegularText(self.level_info)
         right_layout.addWidget(info)
         info.setWordWrap(True)
 
@@ -71,6 +68,7 @@ class BaseLevelPage(QWidget):
 
         back_button = QPushButton("Back")
         back_button.clicked.connect(self.back_method)
+        set_button_sfx(back_button, self.sfx_player, "back.mp3")
         right_layout.addWidget(back_button)
 
         main_layout.addWidget(left_panel, stretch=3)
@@ -180,8 +178,7 @@ class BaseLevelPage(QWidget):
         return f"def {self.func_name}({self.parameters}):"
 
 
-class CodeEditor(QPlainTextEdit):
-
+class CodeEditor(StyledCodeEditor):
     KEY_PAIRS = {
     "(": ")",
     "[": "]",
@@ -264,7 +261,7 @@ class CodeEditor(QPlainTextEdit):
     def line_number_area_paint_event(self, event):
         # Paint the background and numbers for the line-number gutter
         painter = QPainter(self.line_number_area)
-        painter.fillRect(event.rect(), QColor(240, 240, 240))
+        painter.fillRect(event.rect(), self.GUTTER_BG_COLOR)
 
         # Start from the first visible line in the editor
         block = self.firstVisibleBlock()
@@ -280,7 +277,7 @@ class CodeEditor(QPlainTextEdit):
                 number = str(block_number + 1)
 
                 # Draw the line number aligned to the right
-                painter.setPen(Qt.GlobalColor.darkGray)
+                painter.setPen(self.GUTTER_TEXT_COLOR)
                 painter.drawText(
                     0, top,
                     self.line_number_area.width() - 6,
@@ -332,7 +329,7 @@ class CodeEditor(QPlainTextEdit):
         if not self.obscure_mode or self._ignore_edits:
             return
 
-        # If text was typed or deleted, remove the "obscured" state from affected blocks
+        # If text was typed or deleted, remove the 'obscured' state from affected blocks
         if charsRemoved > 0 or charsAdded > 0:
             block = self.document().findBlock(position)
             end_block = self.document().findBlock(position + charsAdded)
@@ -365,6 +362,13 @@ class CodeEditor(QPlainTextEdit):
 
         if has_obscured_selection:
             # Override the system highlight to be dark grey on dark grey
+            self.set_obscure_selection_style(True)
+        else:
+            # Clear the stylesheet to return to normal OS selection colors
+            self.set_obscure_selection_style(False)
+
+        if has_obscured_selection:
+            # Override the system highlight to be dark grey on dark grey
             self.setStyleSheet(
                 "QPlainTextEdit { selection-background-color: #777777; selection-color: #777777; }"
             )
@@ -379,14 +383,14 @@ class CodeEditor(QPlainTextEdit):
         while block.isValid():
             selection = None
 
-            # 1. Level 2 Mechanic (Max Lines)
+            # Level 2 Mechanic (Max Lines)
             if self.max_lines is not None and block.blockNumber() >= self.max_lines:
                 selection = QTextEdit.ExtraSelection()
                 fmt = selection.format
                 fmt.setBackground(QColor(40, 20, 20))  # dark red
                 selection.format = fmt
 
-            # 2. Level 4 Mechanic (Obscured Lines)
+            # Level 4 Mechanic (Obscured Lines)
             elif self.obscure_mode and block.userState() == 1:
                 selection = QTextEdit.ExtraSelection()
                 fmt = selection.format
@@ -508,9 +512,3 @@ class LineNumberArea(QWidget):
     def paintEvent(self, event):
         self.editor.line_number_area_paint_event(event) # Delegate all painting to the editor
 
-
-class ConsoleDisplay(QPlainTextEdit):
-    def __init__(self):
-        super().__init__()
-        self.appendPlainText('# Output Console')
-        self.setReadOnly(True)

@@ -66,7 +66,7 @@ class Level9Page(BaseLevelPage):
         super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
 
     def get_starting_text(self):
-        return ("# Hint: Try writing pass inside the function to make it do nothing\n# Then press 'Submit Solution' "
+        return ("# Hint: Try writing pass inside mystery_func so it does nothing\n# Then press 'Submit Solution' "
                 f"to see an example\n\ndef {self.func_name}({self.parameters}):")
 
 

@@ -86,7 +86,7 @@ class Level10Page(BaseLevelPage):
                 # This converts char_union to a tuple so the characters will be in round brackets
 
         if feedback is not None:
-            print("Test failed:", feedback)
+            print("Tests failed:", feedback)
         else:
             print(success_text)
 

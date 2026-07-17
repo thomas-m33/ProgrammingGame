@@ -4,10 +4,11 @@ from PyQt6.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout,
     QSizePolicy, QCheckBox, QSlider, QGraphicsView, QGraphicsScene
 )
-from PyQt6.QtGui import QPixmap, QBrush, QColor
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtGui import QPixmap, QBrush, QColor, QFont, QFontDatabase
+from PyQt6.QtMultimedia import QMediaPlayer
 from PyQt6.QtMultimediaWidgets import QGraphicsVideoItem
-from styles import MainMenuButton, ProgressButton
+from styles import MainMenuButton, ProgressButton, RegularText
+from utils import set_button_sfx
 
 # Maybe this should be in a different file...
 class BackgroundVideoView(QGraphicsView):
@@ -93,7 +94,7 @@ class BackgroundVideoView(QGraphicsView):
         self.current_media_player.play()
 
     def preload_level_videos(self):
-        for name in ("red stars", "blue stars", "cyan stars", "purple stars", "pink stars"):
+        for name in ("red stars", "purple stars", "pink stars"):
             player = QMediaPlayer(self)
             player.setLoops(-1)
             item = QGraphicsVideoItem()
@@ -123,7 +124,7 @@ class BackgroundVideoView(QGraphicsView):
 
 
 class MainMenuPage(QWidget):
-    def __init__(self, stack, quit_method):
+    def __init__(self, stack, quit_method, sfx_player):
         super().__init__()
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
@@ -135,12 +136,6 @@ class MainMenuPage(QWidget):
         main_layout.addLayout(right_layout, stretch=1)
         main_layout.setContentsMargins(50, 50, 50, 50)
 
-        title = QLabel()
-        pixmap1 = QPixmap("assets/title.png")
-        scaled_pixmap1 = pixmap1.scaled(320, 180)
-        title.setPixmap(scaled_pixmap1)
-        title.setScaledContents(True)
-
         button1 = MainMenuButton("Play")
         button2 = MainMenuButton("Settings")
         button3 = MainMenuButton("Quit")
@@ -151,14 +146,22 @@ class MainMenuPage(QWidget):
         button1.clicked.connect(lambda: stack.setCurrentIndex(1))
         button2.clicked.connect(lambda: stack.setCurrentIndex(2))
         button3.clicked.connect(quit_method)
+        set_button_sfx(button1, sfx_player, "select.mp3")
+        set_button_sfx(button2, sfx_player, "select.mp3")
 
-        dave_pic = QLabel()
-        pixmap2 = QPixmap("assets/dave.png")
-        scaled_pixmap2 = pixmap2.scaled(250, 250)
-        dave_pic.setPixmap(scaled_pixmap2)
+        title = QLabel()
+        title_pixmap = QPixmap("assets/title.png")
+        title.setPixmap(title_pixmap)
+        title.setMinimumSize(320, 180)
+        title.setScaledContents(True)
+        dave = QLabel()
+        dave_pixmap = QPixmap("assets/dave.png")
+        dave.setPixmap(dave_pixmap)
+        dave.setMinimumSize(250, 250)
+        dave.setScaledContents(True)
 
-        left_layout.addWidget(title)
-        left_layout.addWidget(dave_pic)
+        left_layout.addWidget(title, stretch=7)
+        left_layout.addWidget(dave, stretch=8)
         right_layout.addWidget(button1)
         right_layout.addWidget(button2)
         right_layout.addWidget(button3)
@@ -166,14 +169,20 @@ class MainMenuPage(QWidget):
         self.setLayout(main_layout)
 
 
-def create_level_select(stack):
+def create_level_select(stack, sfx_player):
     page = QWidget()
     layout = QVBoxLayout()
     grid_layout = QGridLayout()
 
     page.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    layout.addWidget(QLabel())
+    level_select_text = QLabel("Level Select")
+    level_select_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    font_id = QFontDatabase.addApplicationFont("assets/fonts/BigShoulders-Bold.ttf")
+    font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+    level_select_text.setFont(QFont(font_family, 32))
+    layout.addWidget(level_select_text)
 
-    layout.addWidget(QLabel("Level Select"))
     for i in range(10):
         button = ProgressButton(str(i + 1), completed=True)
         row = i // 5
@@ -181,9 +190,12 @@ def create_level_select(stack):
         grid_layout.addWidget(button, row, col)
         button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         button.clicked.connect(lambda _, n=i: stack.setCurrentIndex(n + 3))
+        set_button_sfx(button, sfx_player, "select.mp3")
+
 
     back_button = QPushButton("Back")
     back_button.clicked.connect(lambda: stack.setCurrentIndex(0))
+    set_button_sfx(back_button, sfx_player, "back.mp3")
     grid_layout.addWidget(back_button, 2, 0, 1, 5)
 
     layout.addLayout(grid_layout)
@@ -192,7 +204,7 @@ def create_level_select(stack):
 
 
 class SettingsMenu(QWidget):
-    def __init__(self, stack, music_output, sfx_output, toggle_fullscreen):
+    def __init__(self, stack, music_output, sfx_output, sfx_player, toggle_fullscreen):
         super().__init__()
         self.music_output = music_output
         self.sfx_output = sfx_output
@@ -207,17 +219,18 @@ class SettingsMenu(QWidget):
         main_layout.addLayout(right_layout, stretch=1)
 
         fullscreen_checkbox = QCheckBox("Fullscreen Mode")
-        music_volume_text = QLabel("Music")
+        music_volume_text = RegularText("Music")
         music_volume_slider = QSlider(Qt.Orientation.Horizontal)
         music_volume_slider.setRange(0, 100)
         music_volume_slider.setValue(50)
-        sfx_volume_text = QLabel("Sound Effects")
+        sfx_volume_text = RegularText("Sound Effects")
         sfx_volume_slider = QSlider(Qt.Orientation.Horizontal)
         sfx_volume_slider.setRange(0, 100)
         sfx_volume_slider.setValue(50)
         back_button = QPushButton("Back")
 
         back_button.clicked.connect(lambda: stack.setCurrentIndex(0))
+        set_button_sfx(back_button, sfx_player, "back.mp3")
         fullscreen_checkbox.toggled.connect(toggle_fullscreen)
 
         music_volume_slider.valueChanged.connect(self.handle_music_volume_change)

@@ -1,5 +1,6 @@
 import os
-from PyQt6.QtWidgets import QPushButton, QLabel, QGraphicsDropShadowEffect, QVBoxLayout, QWidget, QHBoxLayout, QStyle
+from PyQt6.QtWidgets import (QPushButton, QLabel, QGraphicsDropShadowEffect,
+                             QVBoxLayout, QWidget, QHBoxLayout, QStyle, QPlainTextEdit)
 from PyQt6.QtGui import QColor, QFont, QFontDatabase
 from PyQt6.QtCore import Qt, QSize
 
@@ -113,6 +114,9 @@ class ProgressButton(QPushButton):
             background-color: transparent;
             padding: 38px;
         """)
+        font_id = QFontDatabase.addApplicationFont("assets/fonts/BigShoulders-Bold.ttf")
+        font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+        self.text_label.setFont(QFont(font_family, 18))
 
         layout.addWidget(self.text_label)
         self._apply_state_images()
@@ -139,6 +143,7 @@ class ProgressButton(QPushButton):
     def set_completed(self, completed=True):
         self.completed = completed
         self._apply_state_images()
+
 
 class CustomTitleBar(QWidget):
     def __init__(self, parent_window):
@@ -216,7 +221,7 @@ class CustomTitleBar(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            # Only allow dragging if the window isn't currently stretched out fully maximized
+            # Only allow dragging if the window isn't currently fully maximized
             if not self.parent_window.isMaximized():
                 self.drag_pos = event.globalPosition().toPoint() - self.parent_window.frameGeometry().topLeft()
                 event.accept()
@@ -230,3 +235,157 @@ class CustomTitleBar(QWidget):
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.toggle_maximize_state()
+
+
+class RegularText(QLabel):
+    def __init__(self, text):
+        super().__init__(text)
+        self.setStyleSheet("""
+            QLabel {
+                font-family: "Segoe UI";
+                font-size: 9pt;
+                color: #FFFFFF;
+            }
+        """)
+
+
+class StyledCodeEditor(QPlainTextEdit):
+    # Gutter colors for the QPainter in line_number_area_paint_event
+    GUTTER_BG_COLOR = QColor(37, 37, 40)
+    GUTTER_TEXT_COLOR = QColor(133, 133, 133)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        # Base styling for the code editor
+        self._base_style = """
+            QPlainTextEdit {
+                background-color: #2d2d2d;
+                color: #d4d4d4;
+                border: 1px solid #3e3e42;
+                border-radius: 4px;
+                padding: 4px;
+                selection-background-color: #264f78;
+                font-family: "Consolas";
+                font-size: 12pt;
+            }
+
+            /* Minimalist Dark Scrollbars */
+            QScrollBar:vertical {
+                border: none;
+                background: #2d2d2d;
+                width: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #555555;
+                min-height: 20px;
+                border-radius: 6px;
+                margin: 2px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #777777;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+                background: none;
+            }
+
+            QScrollBar:horizontal {
+                border: none;
+                background: #2d2d2d;
+                height: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background: #555555;
+                min-width: 20px;
+                border-radius: 6px;
+                margin: 2px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #777777;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
+                background: none;
+            }
+        """
+
+        # Swaps selection colors for the obscure mechanic
+        self._obscured_style = self._base_style + """
+            QPlainTextEdit {
+                selection-background-color: #777777;
+                selection-color: #777777;
+            }
+        """
+
+        # Apply base style initially
+        self.setStyleSheet(self._base_style)
+
+    def set_obscure_selection_style(self, enable: bool):
+        # Safely toggles the stylesheet for the obscure mechanic selection without resetting scrollbars
+        if enable:
+            self.setStyleSheet(self._obscured_style)
+        else:
+            self.setStyleSheet(self._base_style)
+
+
+class ConsoleDisplay(QPlainTextEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.appendPlainText('# Output Console')
+        self.setReadOnly(True)
+
+        self.setStyleSheet("""
+            ConsoleDisplay {
+                background-color: #262626;
+                color: #FFFFFF;
+                border: 1px solid #333333;
+                border-radius: 4px;
+                padding: 4px;
+                font-family: "Consolas";
+            }
+
+            /* Minimalist Dark Scrollbars */
+            ConsoleDisplay QScrollBar:vertical {
+                border: none;
+                background: #262626;
+                width: 12px;
+                margin: 0px;
+            }
+            ConsoleDisplay QScrollBar::handle:vertical {
+                background: #555555;
+                min-height: 20px;
+                border-radius: 6px;
+                margin: 2px;
+            }
+            ConsoleDisplay QScrollBar::handle:vertical:hover {
+                background: #777777;
+            }
+            ConsoleDisplay QScrollBar::add-line:vertical, ConsoleDisplay QScrollBar::sub-line:vertical {
+                height: 0px;
+                background: none;
+            }
+
+            ConsoleDisplay QScrollBar:horizontal {
+                border: none;
+                background: #262626;
+                height: 12px;
+                margin: 0px;
+            }
+            ConsoleDisplay QScrollBar::handle:horizontal {
+                background: #555555;
+                min-width: 20px;
+                border-radius: 6px;
+                margin: 2px;
+            }
+            ConsoleDisplay QScrollBar::handle:horizontal:hover {
+                background: #777777;
+            }
+            ConsoleDisplay QScrollBar::add-line:horizontal, ConsoleDisplay QScrollBar::sub-line:horizontal {
+                width: 0px;
+                background: none;
+            }
+        """)
