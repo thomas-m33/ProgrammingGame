@@ -6,126 +6,24 @@ import random
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStackedWidget, QGridLayout
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtCore import QUrl, Qt
-from menus import create_level_select, SettingsMenu, MainMenuPage, BackgroundVideoView
+from menus import LevelSelectPage, SettingsPage, MainMenuPage, BackgroundVideoView
 from levels import (Level1Page, Level2Page, Level3Page, Level4Page, Level5Page,
                     Level6Page, Level7Page, Level8Page, Level9Page, Level10Page)
-from styles import CustomTitleBar
+from styles import CustomTitleBar, standard_styles
+from utils import path, SaveManager, load_save_data
 
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-
-        # This should be moved into styles.py
-        self.setStyleSheet("""
-            QPushButton {
-                background-color: #2D2D2D;
-                border: 1px solid #3C3C3C;
-                border-bottom: 1px solid #222222;
-                border-radius: 4px;
-                color: #FFFFFF;
-                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
-                font-size: 14px;
-                padding: 6px 16px;
-            }
-            
-            QPushButton:hover {
-                background-color: #383838;
-                border: 1px solid #404040;
-                border-bottom: 1px solid #222222;
-            }
-            
-            QPushButton:pressed {
-                background-color: #282828;
-                border: 1px solid #3C3C3C;
-                border-top: 1px solid #222222;
-                color: rgba(255, 255, 255, 0.78);
-            }
-            
-            QPushButton:disabled {
-                background-color: #1E1E1E;
-                border: 1px solid #2B2B2B;
-                color: #636363;
-            }
-            
-            QPushButton:focus {
-                border: 1px solid #757575; 
-                }
-                
-
-            QSlider {
-                min-height: 20px;
-            }
-
-            QSlider::groove:horizontal {
-                height: 6px;
-                background: #E0E0E0;
-            }
-
-            QSlider::sub-page:horizontal {
-                background: #FF66C4;
-            }
-
-            QSlider::add-page:horizontal {
-                background: #E0E0E0;
-            }
-
-            QSlider::handle:horizontal {
-                background: #424242;
-                width: 16px;
-                height: 16px;
-                margin-top: -5px;
-                margin-bottom: -5px;
-                border-radius: 8px;
-            }
-            
-            
-            QCheckBox {
-                padding-top: 8px;
-                padding-bottom: 8px;
-                color: #F0F0F0;
-                spacing: 12px;
-                font-weight: 500;
-            }
-
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border: 2px solid #FFFFFF;
-                border-radius: 5px;
-                background-color: rgba(45, 45, 45, 0.3);
-            }
-
-            QCheckBox::indicator:hover {
-                border: 2px solid #FF99D8;
-                background-color: rgba(255, 102, 196, 0.1);
-            }
-            
-            QCheckBox::indicator:checked {
-                background-color: #FF66C4;
-                border: 2px solid #2D2D2F;
-            }
-            
-            QCheckBox::indicator:checked:hover {
-                background-color: #FF99D8; /* Lighter pink when hovering while checked */
-                border: 2px solid #3D3D3D; /* Subtly lighter border on hover */
-            }
-
-            QCheckBox:disabled {
-                color: #555555;
-            }
-            
-            QCheckBox::indicator:disabled {
-                border: 2px solid #2D2D2D;
-                background-color: transparent;
-            }
-        """)
+        self.setStyleSheet(standard_styles)
 
         # Initialise window
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.CustomizeWindowHint)
         self.setWindowTitle("Dave's Algorithm Adventures")
         self.stack = QStackedWidget() # Holds multiple pages
         self.setMinimumSize(920, 640)
+        self.title_bar = CustomTitleBar(self)
 
         # Initialise audio
         # Since QMediaPlayer can only handle one audio stream at a time, we need to make separate ones for music and sfx
@@ -136,9 +34,6 @@ class MainWindow(QWidget):
         self.sfx_player = QMediaPlayer()
         self.sfx_output = QAudioOutput()
         self.sfx_player.setAudioOutput(self.sfx_output)
-
-        self.music_output.setVolume(0.25)
-        self.sfx_output.setVolume(0.25)
 
         self.songs = [
             "Above All.mp3",
@@ -156,14 +51,15 @@ class MainWindow(QWidget):
         self.play_current_song()
 
         # Build GUI
-        main_menu = MainMenuPage(self.stack, self.close, self.sfx_player)
-        level_select = create_level_select(self.stack, self.sfx_player)
-        settings_menu = SettingsMenu(self.stack, self.music_output, self.sfx_output, self.sfx_player,
+        self.main_menu = MainMenuPage(self.stack, self.close, self.sfx_player)
+        self.level_select = LevelSelectPage(self.stack, self.sfx_player)
+        self.settings_menu = SettingsPage(self.stack, self.music_output, self.sfx_output, self.sfx_player,
                                      self.toggle_fullscreen)
-        self.stack.addWidget(main_menu) # Stack index 0 because it was added first
-        self.stack.addWidget(level_select) # Index 1
-        self.stack.addWidget(settings_menu) # Index 2...
+        self.stack.addWidget(self.main_menu) # Stack index 0 because it was added first
+        self.stack.addWidget(self.level_select) # Index 1
+        self.stack.addWidget(self.settings_menu) # Index 2...
 
+        self.save_manager = SaveManager(self.level_select, self.settings_menu)
         self.background = BackgroundVideoView()
         self.background.start()
 
@@ -175,7 +71,10 @@ class MainWindow(QWidget):
         self.level_pages = []
 
         for LevelClass in level_classes:
-            level_page = LevelClass(self.sfx_player, back_method=lambda: self.stack.setCurrentIndex(1))
+            level_page = LevelClass(self.sfx_player,
+                                    back_method=lambda: self.stack.setCurrentIndex(1),
+                                    save_data_update_method= self.save_manager.update_save_data
+                                    )
             self.stack.addWidget(level_page)
             self.level_pages.append(level_page)
 
@@ -197,7 +96,6 @@ class MainWindow(QWidget):
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
-        self.title_bar = CustomTitleBar(self)
         main_layout.addWidget(self.title_bar)
         main_layout.addWidget(content_host)
         self.setLayout(main_layout)
@@ -214,7 +112,7 @@ class MainWindow(QWidget):
             self.showNormal()
 
     def play_current_song(self):
-        music_file_path = os.path.abspath(f"assets/music/{self.songs[self.song_index]}")
+        music_file_path = path(f"assets/music/{self.songs[self.song_index]}")
         self.music_player.setSource(QUrl.fromLocalFile(music_file_path))
         self.music_player.play()
 
@@ -249,15 +147,18 @@ class MainWindow(QWidget):
                 self.background.set_overlay_for_levels()
                 self.background.show_video("pink stars")
 
-    # Fixing a bug where the app wouldn't close properly
     def closeEvent(self, event):
+        # Detach sources so audio/video is fully released
+        # Fixes a bug where the app would remain running in the background even after you closed it
         self.background.stop()
         self.music_player.stop()
         self.sfx_player.stop()
-
-        # Detach sources so audio/video is fully released
         self.music_player.setSource(QUrl())
         self.sfx_player.setSource(QUrl())
+
+        self.save_manager.update_save_data("fullscreen", value=self.isFullScreen())
+        self.save_manager.update_save_data("music_slider_value", value=(self.music_output.volume()*200))
+        self.save_manager.update_save_data("sfx_slider_value", value=(self.sfx_output.volume()*200))
 
         # Close the app
         event.accept()

@@ -2,12 +2,14 @@ from levels.base import BaseLevelPage
 import os
 import io
 from contextlib import redirect_stdout, redirect_stderr
+import tempfile
 
 
 class Level8Page(BaseLevelPage):
     success_text = "Your code was successful! Dave found Gilbert's phone number and they had a great chat."
+    level_num = 8
 
-    def __init__(self, sfx_player, back_method):
+    def __init__(self, sfx_player, back_method, save_data_update_method):
         level_info = ("Dave hasn't been having much luck on Linkedin, so he's now resorting to the most reliable way "
                       "of finding a job... nepotism! One of his friends named Gilbert is a very successful man who "
                       "could surely get Dave an interview at his company.\n\n"
@@ -70,22 +72,26 @@ class Level8Page(BaseLevelPage):
         }
         # Keys are inputs, values are the expected output of the algorithm
 
-        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method, save_data_update_method)
 
     @staticmethod
     def run_tests(code, func_name, io_dict, success_text):
-        for file_contents, expected_output in io_dict.items():
+        # Change this child process's working directory to the OS temp folder
+        # This guarantees the game will have write permissions, and lets the player
+        # just write open("contacts.txt") in their code
+        os.chdir(tempfile.gettempdir())
 
-            with open("contacts.txt", "w") as file: # Creates contacts.txt and opens it for writing
+        for file_contents, expected_output in io_dict.items():
+            with open("contacts.txt", "w") as file:  # Creates contacts.txt in the temp folder
                 file.write(file_contents)
             buffer = io.StringIO()
 
             try:
                 with redirect_stdout(buffer):
-                    exec(code, {}) # The {} gives exec an empty namespace to use
+                    exec(code, {})
             except Exception as e:
                 print("error:", e)
-                if os.path.exists("contacts.txt"): # Safety check in case the file was removed
+                if os.path.exists("contacts.txt"):
                     os.remove("contacts.txt")
                 return
 
@@ -103,9 +109,13 @@ class Level8Page(BaseLevelPage):
                 os.remove("contacts.txt")
 
         print(success_text)
+        return True
 
     @staticmethod
     def try_code(code, stdout_queue):
+        # Do the exact same thing for the testing environment
+        os.chdir(tempfile.gettempdir())
+
         test_contacts = (
             "Alice, 0491570760\n"
             "Bob, 0411111111\n"

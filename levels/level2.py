@@ -2,8 +2,9 @@ from levels.base import BaseLevelPage
 
 class Level2Page(BaseLevelPage):
     success_text = "Your code was successful! Dave's boss liked the algorithm, but he still had some bad news..."
+    level_num = 2
 
-    def __init__(self, sfx_player, back_method):
+    def __init__(self, sfx_player, back_method, save_data_update_method):
         level_info = ("Dave has a job at the bank. This bank has recently been working on a new way to verify "
                       "transactions by looking at the digits of their transaction ID. As part of this system, "
                       "they need an algorithm that finds the sum of the digits in a number.\n\n"
@@ -28,7 +29,7 @@ class Level2Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method, save_data_update_method)
 
     def build_ui(self):
         super().build_ui()

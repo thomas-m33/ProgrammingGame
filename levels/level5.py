@@ -3,8 +3,9 @@ from levels.base import BaseLevelPage
 class Level5Page(BaseLevelPage):
     success_text = ("Your code was successful! The police were stunned by Dave's brilliance and let him go with a "
                     "warning.")
+    level_num = 5
 
-    def __init__(self, sfx_player, back_method):
+    def __init__(self, sfx_player, back_method, save_data_update_method):
         level_info = ("Uh oh. Dave accidentally set off an alarm on his way out of the store and now the police are "
                       "coming to question him... Not to worry though. He is a very clever man and has thought up a "
                       "genius way to outsmart the cops.\n\n"
@@ -31,7 +32,7 @@ class Level5Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method, save_data_update_method)
 
 
 

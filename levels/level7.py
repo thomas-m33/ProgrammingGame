@@ -4,8 +4,9 @@ from PyQt6.QtCore import pyqtSignal
 class Level7Page(BaseLevelPage):
     success_text = ("Your code was successful! Dave figured out that the loan sharks were offering him a horrible deal "
                     "and he declined the loan.")
+    level_num = 7
 
-    def __init__(self, sfx_player, back_method):
+    def __init__(self, sfx_player, back_method, save_data_update_method):
         level_info = ("Some loan sharks have heard about Dave's poor finances and they've come to offer him a bit of "
                       "'help'. These are the details of the loan they offer to Dave:\n\n"
                       "• The loan begins on January 1st and Dave will be paid initial_amount. This amount also becomes "
@@ -40,7 +41,7 @@ class Level7Page(BaseLevelPage):
         }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method, save_data_update_method)
 
     def activate_mechanic(self):
         self.editor.sabotage_mode = True

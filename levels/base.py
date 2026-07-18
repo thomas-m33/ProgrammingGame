@@ -2,8 +2,8 @@
 import random
 from PyQt6.QtWidgets import (QWidget, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QPushButton, QSizePolicy,
                             QTextEdit)
-from PyQt6.QtGui import QPainter, QColor, QFontMetrics, QTextCursor, QTextFormat
-from PyQt6.QtCore import QRect, QSize, Qt, QTimer
+from PyQt6.QtGui import QPainter, QColor, QTextCursor, QTextFormat
+from PyQt6.QtCore import QRect, QSize, Qt, QTimer, QUrl
 import re
 import multiprocessing
 import io
@@ -13,16 +13,18 @@ from utils import *
 
 class BaseLevelPage(QWidget):
     success_text = "Your code was successful! Great job on helping Dave."
+    level_num = None
 
-    def __init__(self, level_info: str, func_name: str, parameters: str, io_checks, sfx_player, back_method):
-        # level info will probably be updated so it can include images
+    def __init__(self, level_info: str, func_name: str, parameters: str, io_checks, sfx_player, back_method,
+                 save_data_update_method):
         super().__init__()
-        self.back_method = back_method # Method of MainWindow, goes back to the page stack index for level select screen
         self.level_info = level_info # Instructions/info displayed on the right panel
         self.func_name = func_name # Name of the function that using is writing their algorithm inside
         self.parameters = parameters # Parameters that the function is declared with.
         self.io_checks = io_checks # A dictionary of inputs and expected outputs, used for testing the user algorithm
         self.sfx_player = sfx_player # A QMediaPlayer object for sound effects
+        self.back_method = back_method # Method of MainWindow, goes back to the page stack index for level select screen
+        self.save_data_update_method = save_data_update_method # Lets the page write to "save data.json"
         self.build_ui()
 
     def build_ui(self):
@@ -31,10 +33,6 @@ class BaseLevelPage(QWidget):
 
         self.editor = CodeEditor(self.sfx_player)
         self.console = ConsoleDisplay()
-
-        font_metrics = QFontMetrics(self.editor.font())
-        space_width = font_metrics.horizontalAdvance(' ')
-        self.editor.setTabStopDistance(4 * space_width)
 
         cursor = self.editor.textCursor()
         cursor.insertText(self.get_starting_text())
@@ -123,7 +121,13 @@ class BaseLevelPage(QWidget):
                     fail_msg(args, expected_output, output)
                     return
             elif type(output) is str:
-                if output.strip() != expected_output:
+                # Strip out whitespace and invisible Unicode variation selectors (Emoji modifiers)
+                clean_output = output.strip().replace("\ufe0f", "")
+                clean_expected = expected_output.replace("\ufe0f", "")
+                # Removing emoji modifiers prevents a bug from happening in level 9 where your solution looks identical
+                # to the expected solution but still gets marked wrong because it has different Unicode
+
+                if clean_output != clean_expected:
                     fail_msg(args, expected_output, output)
                     return
             else:
@@ -133,46 +137,58 @@ class BaseLevelPage(QWidget):
 
         # If the user passed all the tests, then a success message is displayed in the console
         print(success_text)
+        return True
 
     @staticmethod
-    def test_code(Class, code, func_name, io_dict, stdout_queue):
+    def test_code(level_class, code, func_name, io_dict, stdout_queue, result_queue):
         buffer = io.StringIO()
+        result = None
         if func_name in code:
             with redirect_stdout(buffer), redirect_stderr(buffer):
                 try:
-                    Class.run_tests(code, func_name, io_dict, Class.success_text)
+                    result = level_class.run_tests(code, func_name, io_dict, level_class.success_text)
                 except Exception as e:
                     print("error:", e)
         else:
             buffer.write(f"error: the function {func_name} is not in your code.")
         stdout_queue.put(buffer.getvalue())
+        result_queue.put(result)
 
     def safe_exec(self, test=False):
         stdout_queue = multiprocessing.Queue()
         if test:
+            result_queue = multiprocessing.Queue()
             max_lines = self.editor.max_lines
             if max_lines is not None and self.editor.blockCount() > max_lines:
                 self.console.appendPlainText(f"Your solution must be {max_lines} lines or less.")
                 return
             self.console.appendPlainText("\nTesting algorithm...")
-            p = multiprocessing.Process(
+            process = multiprocessing.Process(
                 target=self.test_code,
-                args=(self.__class__, self.editor.toPlainText(), self.func_name, self.io_checks, stdout_queue))
-            p.start()
-            p.join(3) # Wait up to 3 seconds
+                args=(self.__class__, self.editor.toPlainText(), self.func_name, self.io_checks, stdout_queue,
+                      result_queue)
+            )
+            process.start()
+            process.join(3) # Wait up to 3 seconds
         else:
-            p = multiprocessing.Process(target=self.try_code, args=(self.editor.toPlainText(), stdout_queue))
-            p.start()
-            p.join(2)
+            process = multiprocessing.Process(target=self.try_code, args=(self.editor.toPlainText(), stdout_queue))
+            process.start()
+            process.join(3)
 
-        if p.is_alive():
-            p.terminate()
+        if process.is_alive():
+            process.terminate()
             self.console.appendPlainText("Your code took too long to execute. It may have gotten stuck.")
-            p.join() # Triggers OS to remove the multiprocess child's PID
+            process.join() # Triggers OS to remove the multiprocess child's PID
+            return
 
         if not stdout_queue.empty():
             text = stdout_queue.get().rstrip("\n")
             self.console.appendPlainText(text)
+
+        if test and not result_queue.empty():
+            result = result_queue.get()
+            if result:
+                self.save_data_update_method("levels_completed", str(self.__class__.level_num), value=True)
 
     def get_starting_text(self):
         return f"def {self.func_name}({self.parameters}):"
@@ -367,14 +383,6 @@ class CodeEditor(StyledCodeEditor):
             # Clear the stylesheet to return to normal OS selection colors
             self.set_obscure_selection_style(False)
 
-        if has_obscured_selection:
-            # Override the system highlight to be dark grey on dark grey
-            self.setStyleSheet(
-                "QPlainTextEdit { selection-background-color: #777777; selection-color: #777777; }"
-            )
-        else:
-            # Clear the stylesheet to return to normal OS selection colors
-            self.setStyleSheet("")
 
     def update_dynamic_highlighting(self):
         extra_selections = []
@@ -430,7 +438,7 @@ class CodeEditor(StyledCodeEditor):
             self.sabotage_timer.start(interval)
 
     def play_sound(self, filename):
-        sound_path = os.path.abspath(f"assets/sfx/{filename}")
+        sound_path = path(f"assets/sfx/{filename}")
         self.sfx_player.setSource(QUrl.fromLocalFile(sound_path))
         self.sfx_player.play()
 

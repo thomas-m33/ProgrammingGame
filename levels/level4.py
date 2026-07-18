@@ -5,8 +5,9 @@ import random
 
 class Level4Page(BaseLevelPage):
     success_text = "Your code was successful! Dave unlocked the door and sneaked his way into the store..."
+    level_num = 4
 
-    def __init__(self, sfx_player, back_method):
+    def __init__(self, sfx_player, back_method, save_data_update_method):
         level_info = ("Dave can't afford a present for his son's birthday this week because he lost his job. He would "
                       "never let his kids down though, so he's going to get his son a present by stealing it from the "
                       "store. Dave plans to show up in the dead of night, pick the lock on the store's door and quickly "
@@ -35,7 +36,8 @@ class Level4Page(BaseLevelPage):
         ]
         # These lists are used to both create the pick_pin function and test the user's algorithm
 
-        super().__init__(level_info, func_name, parameters, values_list, sfx_player, back_method)
+        super().__init__(level_info, func_name, parameters, values_list, sfx_player, back_method,
+                         save_data_update_method)
 
     def build_ui(self):
         super().build_ui()
@@ -74,6 +76,7 @@ class Level4Page(BaseLevelPage):
                 return
 
         print(success_text)
+        return True
 
     def get_starting_text(self):
         return f"# pick_pin(index) is defined elsewhere\n\ndef {self.func_name}({self.parameters}):"

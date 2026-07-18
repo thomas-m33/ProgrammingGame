@@ -3,8 +3,9 @@ from levels.base import BaseLevelPage
 class Level10Page(BaseLevelPage):
     success_text = ("Your code was successful! Dave passed the interview and finally managed to land a job. His "
                     "days of buying the cheapest bread are over!")
+    level_num = 10
 
-    def __init__(self, sfx_player, back_method):
+    def __init__(self, sfx_player, back_method, save_data_update_method):
         level_info = ("Dave has made it to the final interview and he just needs to answer one more question to get "
                       "the job.\n\n"
                       "The algorithm that Dave needs to make is a random password generator. It needs to randomly "
@@ -26,7 +27,7 @@ class Level10Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method, save_data_update_method)
 
     @staticmethod
     def run_tests(code, func_name, _, success_text):
@@ -89,6 +90,7 @@ class Level10Page(BaseLevelPage):
             print("Tests failed:", feedback)
         else:
             print(success_text)
+            return True
 
     def get_starting_text(self):
         return f"import random\n\ndef {self.func_name}({self.parameters}):"

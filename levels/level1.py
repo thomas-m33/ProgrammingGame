@@ -2,8 +2,9 @@ from levels.base import BaseLevelPage
 
 class Level1Page(BaseLevelPage):
     success_text = "Your code was successful! Dave finally won a game of hide and seek against his kids."
+    level_num = 1
 
-    def __init__(self, sfx_player, back_method):
+    def __init__(self, sfx_player, back_method, save_data_update_method):
         level_info = ("Dave loves to play hide and seek with his kids, but they've gotten too good at hiding recently! "
                       "He needs you to make an algorithm that will help him find them.\n\n"
                       "Each index in the list rooms represents a different room of Dave's house where his kids could "
@@ -24,7 +25,7 @@ class Level1Page(BaseLevelPage):
                    }
         # Keys are inputs, values are the expected output of the function
 
-        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method)
+        super().__init__(level_info, func_name, parameters, io_dict, sfx_player, back_method, save_data_update_method)
 
 
 """

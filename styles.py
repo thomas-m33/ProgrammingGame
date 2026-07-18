@@ -1,30 +1,132 @@
 import os
 from PyQt6.QtWidgets import (QPushButton, QLabel, QGraphicsDropShadowEffect,
                              QVBoxLayout, QWidget, QHBoxLayout, QStyle, QPlainTextEdit)
-from PyQt6.QtGui import QColor, QFont, QFontDatabase
+from PyQt6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics
 from PyQt6.QtCore import Qt, QSize
+from utils import path
 
+standard_styles = """
+            QPushButton {
+                background-color: #2D2D2D;
+                border: 1px solid #3C3C3C;
+                border-bottom: 1px solid #222222;
+                border-radius: 4px;
+                color: #FFFFFF;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+                font-size: 14px;
+                padding: 6px 16px;
+            }
+            
+            QPushButton:hover {
+                background-color: #383838;
+                border: 1px solid #404040;
+                border-bottom: 1px solid #222222;
+            }
+            
+            QPushButton:pressed {
+                background-color: #282828;
+                border: 1px solid #3C3C3C;
+                border-top: 1px solid #222222;
+                color: rgba(255, 255, 255, 0.78);
+            }
+            
+            QPushButton:disabled {
+                background-color: #1E1E1E;
+                border: 1px solid #2B2B2B;
+                color: #636363;
+            }
+            
+            QPushButton:focus {
+                border: 1px solid #757575; 
+                }
+                
+
+            QSlider {
+                min-height: 20px;
+            }
+
+            QSlider::groove:horizontal {
+                height: 6px;
+                background: #E0E0E0;
+            }
+
+            QSlider::sub-page:horizontal {
+                background: #FF66C4;
+            }
+
+            QSlider::add-page:horizontal {
+                background: #E0E0E0;
+            }
+
+            QSlider::handle:horizontal {
+                background: #424242;
+                width: 16px;
+                height: 16px;
+                margin-top: -5px;
+                margin-bottom: -5px;
+                border-radius: 8px;
+            }
+            
+            
+            QCheckBox {
+                padding-top: 8px;
+                padding-bottom: 8px;
+                color: #F0F0F0;
+                spacing: 12px;
+                font-weight: 500;
+            }
+
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #FFFFFF;
+                border-radius: 5px;
+                background-color: rgba(45, 45, 45, 0.3);
+            }
+
+            QCheckBox::indicator:hover {
+                border: 2px solid #FF99D8;
+                background-color: rgba(255, 102, 196, 0.1);
+            }
+            
+            QCheckBox::indicator:checked {
+                background-color: #FF66C4;
+                border: 2px solid #2D2D2F;
+            }
+            
+            QCheckBox::indicator:checked:hover {
+                background-color: #FF99D8; /* Lighter pink when hovering while checked */
+                border: 2px solid #3D3D3D; /* Subtly lighter border on hover */
+            }
+
+            QCheckBox:disabled {
+                color: #555555;
+            }
+            
+            QCheckBox::indicator:disabled {
+                border: 2px solid #2D2D2D;
+                background-color: transparent;
+            }
+        """
 
 class MainMenuButton(QPushButton):
-    def __init__(self, text,
-                 font_path=os.path.abspath("assets/fonts/BigShoulders-Bold.ttf"),
-                 default_img=os.path.abspath("assets/buttons/default.png"),
-                 pressed_img=os.path.abspath("assets/buttons/pressed.png"),
-                 parent=None):
+    def __init__(self, text, parent=None):
 
         super().__init__(parent)
 
-        # Handle Font Loading
-        font_id = QFontDatabase.addApplicationFont(font_path)
-        if font_id != -1:
-            self.font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-        else:
-            self.font_family = "Arial"  # Fallback if font file missing
+        font_path = path("assets/fonts/BigShoulders-Bold.ttf")
+        default_img = path("assets/buttons/default.png")
+        pressed_img = path("assets/buttons/pressed.png")
 
-        # Base Styling
-        # This part is for compatibility. Eventually I will have to add compatibility to all the file paths
+        # Handle font loading
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        self.font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+
+        # On windows, file paths contain the character \ which messes with Python strings
+        # Replacing \ with / still lets Qt read the paths properly but avoids this issue
         d_url = default_img.replace('\\', '/')
         p_url = pressed_img.replace('\\', '/')
+        # For some reason, I only got problems with the \ character when trying to put a path into a stylesheet
 
         self.setStyleSheet(f"""
             QPushButton {{
@@ -66,7 +168,7 @@ class MainMenuButton(QPushButton):
     def resizeEvent(self, event):
         super().resizeEvent(event)
 
-        # Safely scale based on the smaller bounding dimension
+        # Scale based on the smaller bounding dimension
         safe_width_scale = self.width() * 0.10
         safe_height_scale = self.height() * 0.30
         dynamic_font_size = max(12, int(min(safe_width_scale, safe_height_scale)))
@@ -86,19 +188,10 @@ class MainMenuButton(QPushButton):
 
 
 class ProgressButton(QPushButton):
-    def __init__(self,
-                 text="",
-                 completed=False,
-                 default_img=os.path.abspath("assets/buttons/uncompleted default.png"),
-                 pressed_img=os.path.abspath("assets/buttons/uncompleted pressed.png"),
-                 parent=None):
+    def __init__(self, text, completed=False, parent=None):
 
         super().__init__(parent)
-
-        self.default_img = default_img
-        self.pressed_img = pressed_img
         self.completed = completed
-
         self.setStyleSheet("border: none; background-color: transparent;")
         self.setMinimumSize(180, 75)
 
@@ -114,20 +207,23 @@ class ProgressButton(QPushButton):
             background-color: transparent;
             padding: 38px;
         """)
-        font_id = QFontDatabase.addApplicationFont("assets/fonts/BigShoulders-Bold.ttf")
+
+        layout.addWidget(self.text_label)
+        self.apply_state_images()
+        font_id = QFontDatabase.addApplicationFont(path("assets/fonts/BigShoulders-Bold.ttf"))
         font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
         self.text_label.setFont(QFont(font_family, 18))
 
-        layout.addWidget(self.text_label)
-        self._apply_state_images()
-
-    def _apply_state_images(self):
+    def apply_state_images(self):
         if self.completed:
-            d_url = self.default_img.replace("uncompleted", "completed").replace("\\", "/")
-            p_url = self.pressed_img.replace("uncompleted", "completed").replace("\\", "/")
+            self.default_img = path("assets/buttons/completed default.png")
+            self.pressed_img = path("assets/buttons/completed pressed.png")
         else:
-            d_url = self.default_img.replace("\\", "/")
-            p_url = self.pressed_img.replace("\\", "/")
+            self.default_img = path("assets/buttons/uncompleted default.png")
+            self.pressed_img = path("assets/buttons/uncompleted pressed.png")
+
+        d_url = self.default_img.replace('\\', '/')
+        p_url = self.pressed_img.replace('\\', '/')
 
         self.setStyleSheet(f"""
             QPushButton {{
@@ -142,7 +238,7 @@ class ProgressButton(QPushButton):
 
     def set_completed(self, completed=True):
         self.completed = completed
-        self._apply_state_images()
+        self.apply_state_images()
 
 
 class CustomTitleBar(QWidget):
@@ -151,7 +247,6 @@ class CustomTitleBar(QWidget):
         self.parent_window = parent_window
         self.setFixedHeight(25)
 
-        # Unified Application Theme
         self.setStyleSheet("""
             QWidget { 
                 background-color: #1e1e24; 
@@ -227,7 +322,7 @@ class CustomTitleBar(QWidget):
                 event.accept()
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_pos'):
+        if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, "drag_pos"):
             if not self.parent_window.isMaximized():
                 self.parent_window.move(event.globalPosition().toPoint() - self.drag_pos)
                 event.accept()
@@ -256,6 +351,10 @@ class StyledCodeEditor(QPlainTextEdit):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        font_metrics = QFontMetrics(QFont("Consolas", 12))
+        space_width = font_metrics.horizontalAdvance(" ")
+        self.setTabStopDistance(4 * space_width)
 
         # Base styling for the code editor
         self._base_style = """
