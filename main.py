@@ -26,7 +26,7 @@ class MainWindow(QWidget):
         self.title_bar = CustomTitleBar(self)
 
         # Initialise audio
-        # Since QMediaPlayer can only handle one audio stream at a time, we need to make separate ones for music and sfx
+        # Since QMediaPlayer can only handle one audio stream at a time, music and sfx have separate audio players
         self.music_player = QMediaPlayer()
         self.music_output = QAudioOutput()
         self.music_player.setAudioOutput(self.music_output)
@@ -47,7 +47,10 @@ class MainWindow(QWidget):
 
         random.shuffle(self.songs)
         self.song_index = 0
+
+        # Gives a signal that next song should play when the current one finishes
         self.music_player.mediaStatusChanged.connect(self.on_media_status_changed)
+
         self.play_current_song()
 
         # Build GUI
@@ -75,6 +78,8 @@ class MainWindow(QWidget):
                                     back_method=lambda: self.stack.setCurrentIndex(1),
                                     save_data_update_method= self.save_manager.update_save_data
                                     )
+            # A lambda function for back_method is needed here because back_method = self.stack.setCurrentIndex(1)
+            # would pass in the return value of that method instead of the method itself.
             self.stack.addWidget(level_page)
             self.level_pages.append(level_page)
 
@@ -83,7 +88,7 @@ class MainWindow(QWidget):
         content_host = QWidget()
         content_host.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        content_layout = QGridLayout(content_host)
+        content_layout = QGridLayout(content_host) # Holds the background and page stack
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
@@ -105,10 +110,10 @@ class MainWindow(QWidget):
 
     def toggle_fullscreen(self, toggle: bool):
         if toggle:
-            self.title_bar.hide()  # Remove custom title bar layout
+            self.title_bar.hide()
             self.showFullScreen()
         else:
-            self.title_bar.show()  # Bring back title bar in windowed view modes
+            self.title_bar.show()
             self.showNormal()
 
     def play_current_song(self):
@@ -147,6 +152,8 @@ class MainWindow(QWidget):
                 self.background.set_overlay_for_levels()
                 self.background.show_video("pink stars")
 
+    # Methods which are named in camelCase like this are doing polymorphism on PyQt6 methods
+    # I didn't name the other methods with camelCase because PEP8 says not to
     def closeEvent(self, event):
         # Detach sources so audio/video is fully released
         # Fixes a bug where the app would remain running in the background even after you closed it
@@ -164,8 +171,8 @@ class MainWindow(QWidget):
         event.accept()
 
 
-if __name__ == "__main__":
-    multiprocessing.freeze_support() # Do not allow multiprocessing children past this point
+if __name__ == "__main__": # This check stops multiprocessing children when running in an IDE
+    multiprocessing.freeze_support() # This stops multiprocessing children when running in an exe
     app = QApplication(sys.argv) # Creates the application object and passes any command line arguments into it.
 
     window = MainWindow()

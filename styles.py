@@ -240,7 +240,9 @@ class ProgressButton(QPushButton):
         self.completed = completed
         self.apply_state_images()
 
-
+# The game uses a custom title bar because the default Windows one will pause your app's logic if you grab it
+# This would pause the animated backgrounds and make it look like the game is freezing
+# Even first party Windows apps like Task Manager freeze when you grab their title bar, so I just had to use my own
 class CustomTitleBar(QWidget):
     def __init__(self, parent_window):
         super().__init__()
@@ -280,23 +282,23 @@ class CustomTitleBar(QWidget):
 
         layout.addStretch()
 
-        # Minimize Interface Option Button
+        # Minimise button
         self.min_btn = QPushButton("—")
         self.min_btn.setFixedSize(46, 32)
         self.min_btn.clicked.connect(self.parent_window.showMinimized)
         layout.addWidget(self.min_btn)
 
-        # Maximize / Restore Desktop Layout Square Button
+        # Maximise / Restore button
         self.max_btn = QPushButton()
         self.max_btn.setFixedSize(46, 32)
         self.max_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.max_btn.setFlat(True)
         self.max_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMaxButton))
         self.max_btn.setIconSize(QSize(12, 12))
-        self.max_btn.clicked.connect(self.toggle_maximize_state)
+        self.max_btn.clicked.connect(self.toggle_maximise_state)
         layout.addWidget(self.max_btn)
 
-        # Application Execution Termination Option Button
+        # Close button
         self.close_btn = QPushButton("✕")
         self.close_btn.setObjectName("close_btn")
         self.close_btn.setFixedSize(46, 32)
@@ -305,7 +307,7 @@ class CustomTitleBar(QWidget):
 
         self.setLayout(layout)
 
-    def toggle_maximize_state(self):
+    def toggle_maximise_state(self):
         if self.parent_window.isMaximized():
             self.parent_window.showNormal()
             self.max_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMaxButton))
@@ -316,7 +318,7 @@ class CustomTitleBar(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            # Only allow dragging if the window isn't currently fully maximized
+            # Only allow dragging if the window isn't fully maximized
             if not self.parent_window.isMaximized():
                 self.drag_pos = event.globalPosition().toPoint() - self.parent_window.frameGeometry().topLeft()
                 event.accept()
@@ -329,7 +331,7 @@ class CustomTitleBar(QWidget):
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            self.toggle_maximize_state()
+            self.toggle_maximise_state()
 
 
 class RegularText(QLabel):

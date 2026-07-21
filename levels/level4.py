@@ -47,12 +47,12 @@ class Level4Page(BaseLevelPage):
     def try_code(code, stdout_queue):
         buffer = io.StringIO()
         def pick_pin(index):
-            arrangement = [random.choice([True, False]) for i in range(5)] # For the player to use during testing
+            arrangement = [random.choice([True, False]) for _ in range(5)] # For the player to use during testing
             return arrangement[index]
 
         with redirect_stdout(buffer), redirect_stderr(buffer):  # Errors and print statements redirected to buffer
             try:
-                exec(code, {"pick_pin": pick_pin})
+                exec(code, {"pick_pin": pick_pin}) # pick_pin is accessible in the exec environment
             except Exception as e:
                 print("error:", e)
         stdout_queue.put(buffer.getvalue())

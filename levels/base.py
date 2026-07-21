@@ -28,7 +28,6 @@ class BaseLevelPage(QWidget):
         self.build_ui()
 
     def build_ui(self):
-
         main_layout = QHBoxLayout(self) #QHBoxLayout organises widgets horizontally from left to right
 
         self.editor = CodeEditor(self.sfx_player)
@@ -38,7 +37,7 @@ class BaseLevelPage(QWidget):
         cursor.insertText(self.get_starting_text())
         cursor.insertBlock()
         if self.func_name:
-            cursor.insertText("\t")
+            cursor.insertText("\t") # Gives you an indent if you need to write a function
         self.editor.setTextCursor(cursor)
         self.editor.setPlaceholderText("Type your code here...")
         self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap) # Disable line wrapping
@@ -57,7 +56,7 @@ class BaseLevelPage(QWidget):
         info.setWordWrap(True)
 
         run_button = QPushButton("Run Code")
-        run_button.clicked.connect(self.safe_exec) # Temporary
+        run_button.clicked.connect(self.safe_exec)
         right_layout.addWidget(run_button)
 
         submit_button = QPushButton("Submit Solution")
@@ -71,6 +70,7 @@ class BaseLevelPage(QWidget):
 
         main_layout.addWidget(left_panel, stretch=3)
         main_layout.addWidget(right_panel, stretch=2)
+        # 3:2 size ratio between the left and right panels
 
         self.editor.setSizePolicy(
             QSizePolicy.Policy.Expanding,
@@ -83,7 +83,7 @@ class BaseLevelPage(QWidget):
         )
 
 
-    # This needs to be a static method because otherwise Python will throw a pickling error
+    # This needs to be a static method because otherwise multiprocessing will throw a pickling error
     @staticmethod
     def try_code(code, stdout_queue):
         buffer = io.StringIO()
@@ -147,6 +147,8 @@ class BaseLevelPage(QWidget):
             with redirect_stdout(buffer), redirect_stderr(buffer):
                 try:
                     result = level_class.run_tests(code, func_name, io_dict, level_class.success_text)
+                    # The level class is passed in here because when I try to just pass self.run_tests, multiprocessing
+                    # throws a pickling error.
                 except Exception as e:
                     print("error:", e)
         else:
@@ -169,11 +171,11 @@ class BaseLevelPage(QWidget):
                       result_queue)
             )
             process.start()
-            process.join(3) # Wait up to 3 seconds
+            process.join(2) # Wait up to 2 seconds
         else:
             process = multiprocessing.Process(target=self.try_code, args=(self.editor.toPlainText(), stdout_queue))
             process.start()
-            process.join(3)
+            process.join(2)
 
         if process.is_alive():
             process.terminate()
@@ -252,10 +254,11 @@ class CodeEditor(StyledCodeEditor):
         self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
         # Reserve space on the left side of the editor for the line numbers
 
-    def update_line_number_area(self, rect, dy): # rect is the area that needs updating
+    def update_line_number_area(self, rect, y_change):
+        # rect is the rectangle of area that needs updating
         # If the editor scrolls vertically, scroll the line-number area too
-        if dy:
-            self.line_number_area.scroll(0, dy)
+        if y_change:
+            self.line_number_area.scroll(0, y_change)
         else:
             # Otherwise repaint the visible part of the line-number area
             self.line_number_area.update(
@@ -310,6 +313,8 @@ class CodeEditor(StyledCodeEditor):
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._ignore_edits = True
+            # This is a flag to make sure on_contents_change and other methods don't detect changes here as being from
+            # the player. It is mainly to fix bugs with level 4 where the highlighting would get cleared by this method.
 
             if self.obscure_mode:
                 self.textCursor().block().setUserState(1)  # 1 = obscured
@@ -318,7 +323,7 @@ class CodeEditor(StyledCodeEditor):
             block_text = cursor.block().text()
             indent = re.match(r"[ \t]*", block_text).group(0)  # Match 0 or more spaces or tabs
             cursor.insertBlock()  # Go to next line
-            if len(block_text) > 1 and block_text[-1:] == ":":
+            if len(block_text) > 1 and block_text[-1] == ":":
                 cursor.insertText("\t")
 
             if self.obscure_mode:
@@ -341,14 +346,14 @@ class CodeEditor(StyledCodeEditor):
 
         super().keyPressEvent(event)
 
-    def on_contents_change(self, position, charsRemoved, charsAdded):
+    def on_contents_change(self, position, chars_removed, chars_added):
         if not self.obscure_mode or self._ignore_edits:
             return
 
         # If text was typed or deleted, remove the 'obscured' state from affected blocks
-        if charsRemoved > 0 or charsAdded > 0:
+        if chars_removed > 0 or chars_added > 0:
             block = self.document().findBlock(position)
-            end_block = self.document().findBlock(position + charsAdded)
+            end_block = self.document().findBlock(position + chars_added)
 
             while block.isValid() and block.blockNumber() <= end_block.blockNumber():
                 if block.userState() != 2:
@@ -391,14 +396,14 @@ class CodeEditor(StyledCodeEditor):
         while block.isValid():
             selection = None
 
-            # Level 2 Mechanic (Max Lines)
+            # Level 2 mechanic (max lines)
             if self.max_lines is not None and block.blockNumber() >= self.max_lines:
                 selection = QTextEdit.ExtraSelection()
                 fmt = selection.format
                 fmt.setBackground(QColor(40, 20, 20))  # dark red
                 selection.format = fmt
 
-            # Level 4 Mechanic (Obscured Lines)
+            # Level 4 mechanic (obscured lines)
             elif self.obscure_mode and block.userState() == 1:
                 selection = QTextEdit.ExtraSelection()
                 fmt = selection.format
@@ -407,7 +412,7 @@ class CodeEditor(StyledCodeEditor):
                 fmt.setForeground(QColor(0, 0, 0))
                 selection.format = fmt
 
-            # Level 7 Mechanic (Line deletion) ---
+            # Level 7 mechanic (line deletion)
             elif self.sabotage_mode and block.userState() == 2 and self.is_flashing_red:
                 selection = QTextEdit.ExtraSelection()
                 fmt = selection.format
@@ -519,4 +524,3 @@ class LineNumberArea(QWidget):
 
     def paintEvent(self, event):
         self.editor.line_number_area_paint_event(event) # Delegate all painting to the editor
-

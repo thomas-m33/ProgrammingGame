@@ -44,6 +44,8 @@ class BackgroundVideoView(QGraphicsView):
         self.current_media_player.setLoops(-1)
 
         self.current_video_item.nativeSizeChanged.connect(self.update_video_geometry)
+
+        # Resize video to the user's window size when the game first loads up (prevents black bars from showing)
         QTimer.singleShot(50, self.update_video_geometry)
 
     def start(self):
@@ -61,10 +63,12 @@ class BackgroundVideoView(QGraphicsView):
 
     def set_overlay_for_menus(self):
         self.overlay.setStyleSheet("background-color: rgba(20, 20, 20, 0.7);")
+        # a = 0.7 gives a nice translucent effect on the background video
         self.overlay.setVisible(True)
 
     def set_overlay_for_levels(self):
         self.overlay.setStyleSheet("background-color: rgba(10, 10, 10, 0.9);")
+        # a = 0.9 so the user can focus better on their code and the level text
         self.overlay.setVisible(True)
 
     def update_video_geometry(self):
@@ -93,6 +97,8 @@ class BackgroundVideoView(QGraphicsView):
         self.current_media_player.play()
 
     def preload_level_videos(self):
+        # Gets called at the end of MainWindow __init__, reduces video load times
+        # The load times were a problem when I first added video backgrounds to the game but this reduces them by a bit
         for name in ("red stars", "purple stars", "pink stars"):
             player = QMediaPlayer(self)
             player.setLoops(-1)
@@ -108,9 +114,6 @@ class BackgroundVideoView(QGraphicsView):
             self.video_items[name] = item
 
     def show_video(self, name):
-        if name not in self.media_players or name not in self.video_items:
-            return
-
         self.current_video_item.hide()
 
         self.current_video_item = self.video_items[name]
@@ -141,6 +144,8 @@ class MainMenuPage(QWidget):
         button1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         button2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         button3.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        # Expanding size policies are needed to make sure the buttons fill up the room they've been given
+        # If you don't set these size policies then the buttons end up looking tiny
 
         button1.clicked.connect(lambda: stack.setCurrentIndex(1))
         button2.clicked.connect(lambda: stack.setCurrentIndex(2))
@@ -196,7 +201,7 @@ class LevelSelectPage(QWidget):
             grid_layout.addWidget(button, row, col)
             button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             button.clicked.connect(lambda _, n=i: stack.setCurrentIndex(n + 3))
-            set_button_sfx(button, self.sfx_player, "select.mp3")
+            set_button_sfx(button, sfx_player, "select.mp3")
 
         back_button = QPushButton("Back")
         back_button.clicked.connect(lambda: stack.setCurrentIndex(0))

@@ -83,6 +83,7 @@ class SaveManager(QObject):
             level_num = int(keys[-1])
             self.level_select_page.set_level_as_complete(level_num)
 
+
 def set_button_sfx(button, sfx_player, file_name):
     file_path = path(f"assets/sfx/{file_name}")
 
